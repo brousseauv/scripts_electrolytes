@@ -31,7 +31,7 @@ def db_from_hist(args):
         current_forces = forces[i, :, :] * ha_to_ev/bohr_to_ang  # in eV/ang
         current_stress = stresses[i, :] * ha_to_ev/(bohr_to_ang**3)  # in eV/ang^3
         # Je suis rendue à tester ça, mais ça devrait fonctionner correctement...
-        add_to_database(args, atoms, energy, current_forces, current_stress)
+        add_to_database(args, db, atoms, energy, current_forces, current_stress)
         
 
 # make one function for the ASE db format and one for the MTP-MLIP .cfg format
@@ -60,10 +60,10 @@ def convert_structure(args, struct):
     elif args.format == 'mtp':
         raise NotImplementedError('MTP database creation not yet implemented')
 
-def add_to_database(args, atoms, energy, forces, stresses):
+def add_to_database(args, db, atoms, energy, forces, stresses):
 
     if args.format == 'ase':
-        db.write(atoms, data = {'energy': energy, 'forces': current_forces})
+        db.write(atoms, data = {'energy': energy, 'forces': forces})
     elif args.format == 'mtp':
         raise NotImplementedError('MTP database creation not yet implemented')
 
