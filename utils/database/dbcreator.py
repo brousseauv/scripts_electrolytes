@@ -19,7 +19,7 @@ def db_from_hist(args):
     energies = hist.etotals
     forces = hist.reader.read_value('fcart')
     stresses = hist.reader.read_value('strten')
-    
+
     db = create_database(args)
     dblst = list(range(0, hist.num_steps, args.mdskip))
 
@@ -61,14 +61,13 @@ def convert_structure(args, struct):
         return abistruct_to_ase(struct)
 
     elif args.format == 'mtp':
-        # It should work directly from the Abipy Structure class...
         return struct
 
 
 def add_to_database(args, db, atoms, energy, forces, stresses):
 
     if args.format == 'ase':
-        db.write(atoms, data={'energy': energy, 'forces': forces})
+        db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
     elif args.format == 'mtp':
         abistruct_to_cfg(db, atoms, energy, forces, stresses)
 
