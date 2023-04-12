@@ -36,8 +36,9 @@ def db_from_hist(args):
 
 def db_from_gsr(args):
 
+    raise NotImplementedError('db creation from GSR files not yet implemented')
     # Find all GSR.nc files in PATH
-    fname = [f for f in os.listdir(args.path) if f.endswith("GSR.nc")]
+    # fname = [f for f in os.listdir(args.path) if f.endswith("GSR.nc")]
 
     # NOTE: ase.io.read() can read the format abinit-gsr
     # I could also simply use the to_ase_atoms class method
@@ -50,9 +51,9 @@ def create_database(args):
 
     elif args.format == 'mtp':
         if args.dbname.endswith('.cfg'):
-            return open(args.dbname, 'a')
+            return open(args.dbname, 'w')
         else:
-            return open('{}.cfg'.format(args.dbname), 'a')
+            return open('{}.cfg'.format(args.dbname), 'w')
 
 
 def convert_structure(args, struct):
@@ -84,6 +85,7 @@ def create_parser():
             for independent configuration)""", required=True)
     parser.add_argument("--format", choices=['ase', 'mtp'], help="Output format for the database", required=True)
     parser.add_argument("--mdskip", type=int, default=10, help="Database will include every 'mdskip' configuration")
+    parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
 
     return parser
 
@@ -96,7 +98,18 @@ def check_parser(args, parser):
         parser.error("--source 'hist' requires --fname argument")
 
 
+def check_db_exists(fname, delete):
+
+    if os.path.exists(os.path.join(os.getcwd(), fname)):
+        if delete:
+            os.remove(fname)
+        else:
+            raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True
+                    keyword.""".format(os.path.join(os.getcwd(), fname)))
+
 def main(args):
+
+    check_db_exists(args.dbname, args.overwrite)
 
     if args.source == 'hist':
         db_from_hist(args)
