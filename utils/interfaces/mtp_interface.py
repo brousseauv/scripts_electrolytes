@@ -4,18 +4,17 @@ def abistruct_to_cfg(db, struct, energy, forces, stresses):
 
     # Write configuration in the .cfg format from MLIP-2 package
     # all the properties related to struct object ( an Abipy.core.Structure object)
-    # need to be checked! I am writing that without checking actually how to call these.
     db.write("BEGIN_CFG\n")
     db.write(" Size\n    {}\n".format(struct.num_sites))
     db.write(" Supercell")
     for i in range(3):
         db.write("\n    {0[0]} {0[1]} {0[2]}".format(['{:13.6f}'.format(a) for a in struct.lattice.matrix[i, :]]))
-        #  FIX ME: Check units in MLIP!!!
+        #  FIX ME: Check units in MLIP!!! Most likely angstrom as they work with VASP...
     db.write("\n")
 
     db.write(" AtomData:  id type       cartes_x      cartes_y      cartes_z           fx          fy          fz\n")
     for idx, site in enumerate(struct):
-        db.write("    {:10.0f} {:4.0f}".format(idx, struct.types_of_species.index(site.specie)))  # FIX ME: it has to be typat, not symbol
+        db.write("    {:10.0f} {:4.0f}".format(idx + 1, struct.types_of_species.index(site.specie)))  
         db.write("  {0[0]} {0[1]} {0[2]}".format(['{:13.6f}'.format(x) for x in site.coords]))
         db.write("  {0[0]} {0[1]} {0[2]}\n".format(['{:11.6f}'.format(f) for f in forces[idx, :]]))
 
