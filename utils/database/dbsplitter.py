@@ -74,9 +74,6 @@ class MtpDbSplitter(DbSplitter):
 
         cfg1, cfg2 = (open(out_db1, 'w'), 
                       open(out_db2, 'w'))
-        print(idx, ndata, len(configs))
-        print(idx1)
-        print(idx2)
         for idx in idx1:
             self.write_config(cfg1, configs[idx]) 
         for idx in idx2:
