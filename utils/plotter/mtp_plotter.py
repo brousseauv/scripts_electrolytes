@@ -41,6 +41,8 @@ def plot_errors(
 
         **kwargs):
 
+    # FIX ME: right now this is sort of useless unless I can track error evolution through an active learning scheme
+    # since there are no epochs here, there is only one error report per passive run. 
     check_field(field)
 
     # set n_subplots in case axes are not predefined, need to be able to handle this when creating figure from scratch
