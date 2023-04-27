@@ -28,6 +28,7 @@ class Plotter:
         self.set_linewidth(kwargs.get('linewidth', 2.0))
         self.set_labelsize(kwargs.get('labelsize', 16))
         self.set_figname(kwargs.get('savefig', 'diffusion.png'))
+        self.set_showfig(kwargs.get('showfig', True))
         try:
             self.set_title(kwargs.get('title'))
         except:
@@ -47,7 +48,10 @@ class Plotter:
 
     def set_labels(self):
         self.ax.set_xlabel(r'time (ps)', fontsize=self.labelsize)
-        self.ax.set_ylabel(r'MSD (\AA/s)', fontsize=self.labelsize)
+        self.ax.set_ylabel(r'MSD (\AA$^2$)', fontsize=self.labelsize)
+
+    def set_showfig(self, showfig):
+        self.showfig = showfig
 
     def set_title(self):
         self.ax.set_title(self.title)
@@ -56,4 +60,5 @@ class Plotter:
         plt.savefig(self.figname)
 
     def show_figure(self):
-        plt.show()
+        if self.showfig:
+            plt.show()
