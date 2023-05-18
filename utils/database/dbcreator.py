@@ -9,7 +9,39 @@ from utils.interfaces.mtp_interface import abistruct_to_cfg
 from utils.constants import ha_to_ev, bohr_to_ang
 
 # FIX ME: would this better work as classes?
+'''
+    These functions create a databse of atomic configurations extracted from Abinit HIST.nc files
+    (eventually: and a directory containing multiple GSR.nc files)
+    and converts them either in ASE .db format (to be used with SchNetPack)
+    or in .cfg format (to be used with MTP/mlip-2 code).
 
+    Simply call python dbcreator.py --<OPTION1> <value1> -- <OPTION2> <value2> etc.
+
+    Options: dbname: filename for the creater database
+
+        path (required, mutually exclusive with fname): Path to the calculation folder containing the configurations
+
+        fname (required, mutually exclusive with path): filename containing the configurations
+
+        source (required): Data source file type.  Can be 'hist' for AIMD runs or 'gsr' for independent configuration.
+
+        format(required): Output format for the database.  Can be either 'mtp' or 'ase'.
+
+        mdskip: Integer; elect each 'mdskip' configuration in the AIMD trajectory (to prevent having too may correlated configurations).  
+                Default = 10
+        
+        overwrite: Boolean; indicates if the database should be overwritten in case the filename already exists.
+                   Default = False
+
+        ex: the following command creates a database called mydatabase in .cfg format from a calc_HIST.nc file in subdirectory aimd/,
+            selecting one every 50 configurations:
+
+            python dbcreator.py --dbname mydatabase.cfg --fname aimd/calc_HIST.nc --source 'hist' --format='mtp' --mdskip 50
+
+    For help about these options on the command line, type 
+        python dbcreator.py --help
+
+'''
 
 def db_from_hist(args):
 

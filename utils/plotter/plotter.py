@@ -1,5 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import os
 
 plt.rc('text', usetex=True)
 
@@ -23,11 +24,11 @@ class Plotter:
         ''' Set figure size'''
         self.fig.set_size_inches(w, h)
 
-    def set_line2d_params(self,**kwargs):
+    def set_line2d_params(self, defname, **kwargs):
 
         self.set_linewidth(kwargs.get('linewidth', 2.0))
         self.set_labelsize(kwargs.get('labelsize', 16))
-        self.set_figname(kwargs.get('savefig', 'diffusion.png'))
+        self.set_figname(kwargs.get('savefig', defname))
         self.set_showfig(kwargs.get('showfig', True))
         try:
             self.set_title(kwargs.get('title'))
@@ -46,18 +47,20 @@ class Plotter:
     def set_title(self, title):
         self.title = title
 
-    def set_labels(self):
-        self.ax.set_xlabel(r'time (ps)', fontsize=self.labelsize)
-        self.ax.set_ylabel(r'MSD (\AA$^2$)', fontsize=self.labelsize)
-
     def set_showfig(self, showfig):
         self.showfig = showfig
 
-    def set_title(self):
-        self.ax.set_title(self.title)
+    def add_title(self):
+        self.ax.set_title(self.title, fontsize=self.labelsize)
 
     def save_figure(self):
-        plt.savefig(self.figname)
+
+        try:
+            os.mkdir('figures')
+        except OSError:
+            pass
+        pathname = os.path.join('figures', self.figname)
+        plt.savefig(pathname, bbox_inches='tight')
 
     def show_figure(self):
         if self.showfig:

@@ -39,8 +39,9 @@ def read_msd_from_thermo(data):
 
     time = read_thermo(data, 'Time')
     msd = read_thermo(data, 'c_msd[4]')
+    temp = read_thermo(data, 'Temp')[0]
 
-    return time, msd
+    return time, msd, temp
 
 
 def read_traj_from_dump(fname, atomic_numbers):
