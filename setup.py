@@ -1,9 +1,12 @@
 from setuptools import setup, find_packages
 
-requirements = ["numpy>=1.18"]
+requirements = ["numpy>=1.18",
+                "abipy>=0.9",
+                "ase>=3.23",
+                "pandas>=1.5"]
 
 setup(
-    name="utils",
+    name="scripts_electrolytes",
     version="1.0.0",
     author="Véronique Brousseau-Couture",
     author_email="veronique.brousseauc@gmail.com",
