@@ -6,6 +6,20 @@ plt.rc('text', usetex=True)
 
 class Plotter:
 
+    '''
+        Kwargs options:
+            kwargs with default values:
+                figsize: figure size, in inches
+                linewidth: linewidth for Line2D objects
+                labelsize: axes labels fontsize
+                figname: filename for the figure. 
+                savefig: Boolean, should the figure be saved or not.
+                showfig: Boolean, display figure or not
+
+            kwargs without default values (ignored if not specified):
+                title: figure title
+    '''
+
     def __init__(self, ax=None, **kwargs):
 
         self._init_figure(ax=ax, **kwargs)

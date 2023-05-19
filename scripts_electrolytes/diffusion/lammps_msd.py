@@ -9,6 +9,18 @@ class LammpsMsdData(MsdData):
 
     def __init__(self, fname, filetype, rootname='MsdData'):
 
+        '''
+            Input:
+                fname: name of the file containing MSD/atomic positions information
+
+                filetype: type of file from which the MSD has to be extracted.
+                            "thermo": output of LAMMPS thermo command which includes MSD
+                            "dump": UNWRAPPED LAMMPS trajectory file
+                            "dump-netcdf": similar to "dump" but in netCDF format
+
+                rootname: rootname for the .dat and .nc output files containing the computed information
+        '''
+
         if filetype not in ['thermo', 'dump', 'dump-netcdf']:
             raise Exception('''filetype should be one of the following: "thermo", "dump",
                                "dump-netcdf", but I got {}'''.format(filetype))
@@ -20,6 +32,31 @@ class LammpsMsdData(MsdData):
     
     def compute_diffusion_coefficient(self, thermo_fname=None, timestep=None, atom_type='all', atomic_numbers=None, 
                                       msd_type='bare', input_temperature=None, plot=False, plot_errors=False, **kwargs):
+
+        '''
+            thermo_fname: path to the thermo.dat file is already extracted from lammps.log
+
+            timestep: MD timestep, in picosecond
+
+            atom_type: for which atoms the MSD must be computed. Currently, possible options 
+                       are "<atom symbol>" for a single atomic specie and  an "all" for all species.
+
+            atomic_numbers: list of atomic numbers with the same ordering as the dump file, i.e. [<atom type 0>, <atom type 1> ...]
+                            for "dump" filetype only.
+
+            msd_type: how the MSD should be processed. 
+                        "bare": no treatment of raw MSD
+                        "timesliced": for each time interval t, the MSD of each individual atom is averaged over all possible
+                        time slices equivalent to t (ex.: if t=2, average 2-0, 3-1, 4-2, etc.)
+
+            input_temperature: Running temperature of the MD run. For "dump" filetype only.
+
+            plot: activate plotting of MSD vs t
+
+            plot_errors: plot MSD(T) +- standard deviation on all atoms at each timestep, if available
+
+            **kwargs: optional arguments that will be passes to the Plotter object (see plotter/plotter.py)
+        '''
 
         self.msd_type = msd_type
 
@@ -63,7 +100,7 @@ class LammpsMsdData(MsdData):
             logging.info('Computing MSD from atomic positions...')
             self.compute_msd_from_positions()
             logging.info('... done!')
-            self.time = timestep*np.arange(len(self.msd)) # check the final shape, it should be just len=N timesteps
+            self.time = timestep*np.arange(len(self.msd))
             # Just curious, does this work?!?
 #            self.coeff = self.get_diffusion_ase(timestep)
 
@@ -93,6 +130,7 @@ class LammpsMsdData(MsdData):
     def get_diffusion_ase(self, timestep):
 
         # Did not check if this works...
+        # It's mostly for sanity check
         coeff = DiffusionCoefficient(self.traj, timestep)
 
     def compute_msd_from_positions(self):

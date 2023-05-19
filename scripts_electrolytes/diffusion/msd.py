@@ -20,11 +20,16 @@ class MsdData:
 
 
     def compute_atoms_msd(self, displacements):
-        # Compute MSD for target atoms
+        '''
+            Compute MSD for targeted atoms.
+
+            Options:
+                timesliced: this will average each atom's MSD at timestep t on all equivalent timeslices equal to t
+                bare: no timeslice averaging is done.
+        '''
         msd_atoms = np.zeros((self.nframes, self.natoms))
 
         if self.msd_type == 'timesliced':
-            # Average all atom MSD on equivalent timeslices
             for t in range(self.nframes):
                 if t%1000 == 0:
                     print('Treating time interval {}'.format(t))
@@ -32,7 +37,6 @@ class MsdData:
                 msd_atoms[t, :] = np.mean(np.einsum('fad, fad -> fa', arr, arr), axis=0)
 
         elif self.msd_type == 'bare':
-            # No timeslice averaging
             msd_atoms = np.einsum('fad, fad -> fa', displacements, displacements)
 
         return msd_atoms
@@ -40,7 +44,7 @@ class MsdData:
 
     def extract_diffusion_coefficient(self):
 
-        # from here, classes should already have a time and msd property
+        # FIX ME: from here, classes should already have a time and msd property
         # Also, one could decide to elimitate some initial and final part of the trajectory when computing the fit
 
         # Assume units of angstrom^2/ps
@@ -69,6 +73,7 @@ class MsdData:
         myplot.ax.plot(self.time, y, color=bright['red'], linewidth=myplot.linewidth, linestyle='dashed')
 
         # if we have std on atoms at each time step, add it
+        # FIX ME: this is a little crude, as msd-msd_std can be negative
         if self.msd_std is not None and self.plot_errors:
             myplot.ax.fill_between(self.time, self.msd-self.msd_std, self.msd+self.msd_std, color='gray', zorder=-1, alpha=0.3)
 
