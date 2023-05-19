@@ -4,7 +4,7 @@ Contains scripts for computing properties of solid state electrolytes using mach
 
 ## Requirements
 
-python 3, numpy
+python 3, numpy, pandas
 
 Packages [ASE](https://wiki.fysik.dtu.dk/ase/install.html) 
 and [Abipy](https://github.com/abinit/abipy) must be installed.
