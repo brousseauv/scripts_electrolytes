@@ -10,6 +10,8 @@ from .plotter import Plotter
 
     Output: matplotib.axes.AxesSubplot instance containing the data extracted from given MTP output file
 
+    Still under development!
+
 '''
 # define functions that return a matplotlib ax instance, then is can freely be customized by the user
 # Just as I did in ThermalExpansion.teplotter

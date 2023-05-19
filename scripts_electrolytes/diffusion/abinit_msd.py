@@ -9,6 +9,13 @@ class HistMsdData(MsdData):
 
     def __init__(self, fname, rootname='MsdData'):
 
+        '''
+            Input:
+                fname: name of the netCDF HIST.nc file containing atomic positions information
+
+                rootname: rootname for the .dat and .nc output files containing the computed information
+        '''
+
         super(HistMsdData, self).__init__(fname, rootname)
         self.data = HistFile(fname)
         self.data_source = 'Abinit HIST file'
@@ -46,6 +53,22 @@ class HistMsdData(MsdData):
         self.msd = np.mean(self.msd_atoms, axis=1)
 
     def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', plot=False, plot_errors=False, **kwargs):
+
+        '''
+            atom_type: for which atoms the MSD must be computed. Currently, possible options 
+                       are "<atom symbol>" for a single atomic specie and  an "all" for all species.
+
+            msd_type: how the MSD should be processed. 
+                        "bare": no treatment of raw MSD
+                        "timesliced": for each time interval t, the MSD of each individual atom is averaged over all possible
+                        time slices equivalent to t (ex.: if t=2, average 2-0, 3-1, 4-2, etc.)
+
+            plot: activate plotting of MSD vs t
+
+            plot_errors: plot MSD(T) +- standard deviation on all atoms at each timestep, if available
+
+            **kwargs: optional arguments that will be passes to the Plotter object (see plotter/plotter.py)
+        '''
 
         timestep = self.read_timestep
         self.atom_type = atom_type
