@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 requirements = ["numpy>=1.18",
                 "abipy>=0.9",
-                "ase>=3.23",
+                "ase>=3.21",
                 "pandas>=1.5"]
 
 setup(
