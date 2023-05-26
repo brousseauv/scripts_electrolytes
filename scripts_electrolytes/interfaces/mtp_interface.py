@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
+import subprocess as subp
 
 
 def abistruct_to_cfg(db, struct, energy, forces, stresses):
@@ -16,7 +17,7 @@ def abistruct_to_cfg(db, struct, energy, forces, stresses):
 
     db.write(" AtomData:  id type       cartes_x      cartes_y      cartes_z           fx          fy          fz\n")
     for idx, site in enumerate(struct):
-        db.write("    {:10.0f} {:4.0f}".format(idx + 1, struct.types_of_species.index(site.specie)))  
+        db.write("    {:10.0f} {:4.0f}".format(idx + 1, struct.types_of_species.index(site.specie)))
         db.write("  {0[0]} {0[1]} {0[2]}".format(['{:13.6f}'.format(x) for x in site.coords]))
         db.write("  {0[0]} {0[1]} {0[2]}\n".format(['{:11.6f}'.format(f) for f in forces[idx, :]]))
 
@@ -74,13 +75,13 @@ def read_errors(fname, runtype):
     elif runtype == 'test':
         return valid_data
     else:
-        return train_data, valid_data  
+        return train_data, valid_data
 
 
 def check_runtype(runtype):
     ''' Checks the runtype keyword is correct'''
     keys = ['train', 'test', 'all']
-    if not runtype in keys:
+    if runtype not in keys:
         raise ValueError('Runtype should be {} but I received {}'.format(keys, runtype))
 
 
@@ -103,6 +104,7 @@ def split_block(block):
 
     return split_block
 
+
 def read_block(block):
     ''' Extracts error data from splitted Errors report block'''
 
@@ -115,7 +117,34 @@ def read_block(block):
         data_block = []
         for line in iblock.split('\n'):
             if '=' in line:
-                data_block.append(float(line.split('=')[-1])) 
+                data_block.append(float(line.split('=')[-1]))
         data[keys[i]] = data_block
+
+    return data
+
+
+def read_mv_grade(fname, verbose=False):
+    ''' Reads the MV_grade from a .cfg database and returns a dictionnary containing
+        extrapolation grade values, and some statistics about the database
+    '''
+
+    data = {}
+    status, output = subp.getstatusoutput('grep MV_grade {}'.format(fname))
+    output = np.asarray([i.split('\t')[-1] for i in output.split('\n')], dtype=float)
+
+    data['values'] = output
+    data['max'] = max(output)
+    data['min'] = min(output)
+    data['argmax'] = np.argmax(output)
+    data['argmin'] = np.argmin(output)
+    data['mean'] = np.mean(output)
+    data['stdev'] = np.std(output)
+
+    if verbose:
+        print('For file:{}'.format(fname))
+        print('    gamma max = {:.2f} (step {})'.format(data['max'], data['argmax']))
+        print('    gamma min = {:.2f} (step {})'.format(data['min'], data['argmin']))
+        print('    gamma mean = {:.2f}'.format(data['mean']))
+        print('    gamma stdev = {:.2f}'.format(data['stdev']))
 
     return data
