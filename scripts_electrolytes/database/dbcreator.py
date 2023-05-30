@@ -103,7 +103,7 @@ def add_to_database(args, db, atoms, energy, forces, stresses):
     if args.format == 'ase':
         db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
     elif args.format == 'mtp':
-        abistruct_to_cfg(db, atoms, energy, forces, stresses)
+        abistruct_to_cfg(db, atoms, energy=energy, forces=forces, stresses=stresses)
 
 
 def create_parser():

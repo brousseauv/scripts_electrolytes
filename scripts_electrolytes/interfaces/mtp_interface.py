@@ -3,7 +3,7 @@ import numpy as np
 import subprocess as subp
 
 
-def abistruct_to_cfg(db, struct, energy, forces, stresses):
+def abistruct_to_cfg(db, struct, energy=None, forces=None, stresses=None):
 
     # Write configuration in the .cfg format from MLIP-2 package
     # all the properties related to struct object ( an Abipy.core.Structure object)
@@ -15,15 +15,23 @@ def abistruct_to_cfg(db, struct, energy, forces, stresses):
         #  FIX ME: Check units in MLIP!!! Most likely angstrom as they work with VASP...
     db.write("\n")
 
-    db.write(" AtomData:  id type       cartes_x      cartes_y      cartes_z           fx          fy          fz\n")
-    for idx, site in enumerate(struct):
-        db.write("    {:10.0f} {:4.0f}".format(idx + 1, struct.types_of_species.index(site.specie)))
-        db.write("  {0[0]} {0[1]} {0[2]}".format(['{:13.6f}'.format(x) for x in site.coords]))
-        db.write("  {0[0]} {0[1]} {0[2]}\n".format(['{:11.6f}'.format(f) for f in forces[idx, :]]))
+    if forces is not None:
+        db.write(" AtomData:  id type       cartes_x      cartes_y      cartes_z           fx          fy          fz\n")
+        for idx, site in enumerate(struct):
+            db.write("    {:10.0f} {:4.0f}".format(idx + 1, struct.types_of_species.index(site.specie)))
+            db.write("  {0[0]} {0[1]} {0[2]}".format(['{:13.6f}'.format(x) for x in site.coords]))
+            db.write("  {0[0]} {0[1]} {0[2]}\n".format(['{:11.6f}'.format(f) for f in forces[idx, :]]))
+    else:
+        db.write(" AtomData:  id type       cartes_x      cartes_y      cartes_z\n")
+        for idx, site in enumerate(struct):
+            db.write("    {:10.0f} {:4.0f}".format(idx + 1, struct.types_of_species.index(site.specie)))
+            db.write("  {0[0]} {0[1]} {0[2]}\n".format(['{:13.6f}'.format(x) for x in site.coords]))
 
-    db.write(" Energy\n    {:20.12f}\n".format(energy))
-    db.write(" PlusStress:  xx          yy          zz          yz          xz          xy\n")
-    db.write("     {0[0]} {0[1]} {0[2]} {0[3]} {0[4]} {0[5]}\n".format(['{:11.5f}'.format(strs) for strs in stresses]))
+    if energy is not None:
+        db.write(" Energy\n    {:20.12f}\n".format(energy))
+    if stresses is not None:
+        db.write(" PlusStress:  xx          yy          zz          yz          xz          xy\n")
+        db.write("     {0[0]} {0[1]} {0[2]} {0[3]} {0[4]} {0[5]}\n".format(['{:11.5f}'.format(strs) for strs in stresses]))
     db.write(" Feature   ESF_by\tABINIT\n")
     # FIX ME: not sure this will be working during reading?!? if not, for now, change to vasp...
     db.write("END_CFG\n\n")
