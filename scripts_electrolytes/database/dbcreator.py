@@ -30,6 +30,9 @@ from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
 
         mdskip: Integer; elect each 'mdskip' configuration in the AIMD trajectory (to prevent having too may correlated configurations).  
                 Default = 10
+
+        initstep: Integer, index of the first configuration selected in the database.
+                  Defaut = 0
         
         overwrite: Boolean; indicates if the database should be overwritten in case the filename already exists.
                    Default = False
@@ -54,8 +57,8 @@ def db_from_hist(args):
     stresses = hist.reader.read_value('strten')
 
     db = create_database(args)
-    dblst = list(range(0, hist.num_steps, args.mdskip))
-
+    dblst = list(range(args.initstep, hist.num_steps, args.mdskip))
+    print(dblst[:10])
     for i in dblst:
 
         atoms = convert_structure(args, structures[i])
@@ -83,11 +86,9 @@ def create_database(args):
         return connect(args.dbname)
 
     elif args.format == 'mtp':
-        if args.dbname.endswith('.cfg'):
-            return open(args.dbname, 'w')
-        else:
-            return open('{}.cfg'.format(args.dbname), 'w')
-
+        if not args.dbname.endswith('.cfg'):
+            args.dbname = '{}.cfg'.format(args.dbname)
+        return open(args.dbname, 'w')
 
 def convert_structure(args, struct):
 
@@ -118,6 +119,7 @@ def create_parser():
             for independent configuration)""", required=True)
     parser.add_argument("--format", choices=['ase', 'mtp'], help="Output format for the database", required=True)
     parser.add_argument("--mdskip", type=int, default=10, help="Database will include every 'mdskip' configuration")
+    parser.add_argument("--initstep", type=int, default=0, help="Index of the first configuration selected")
     parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
 
     return parser
@@ -131,18 +133,23 @@ def check_parser(args, parser):
         parser.error("--source 'hist' requires --fname argument")
 
 
-def check_db_exists(fname, delete):
+def check_db_exists(args):
 
-    if os.path.exists(os.path.join(os.getcwd(), fname)):
-        if delete:
-            os.remove(fname)
+    if args.format == 'ase' and not args.dbname.endswith('.db'):
+        args.dbname = '{}.db'.format(args.dbname)
+    elif args.format == 'mtp' and not args.dbname.endswith('.cfg'):
+        args.dbname = '{}.cfg'.format(args.dbname)
+
+    if os.path.exists(os.path.join(os.getcwd(), args.dbname)):
+        if args.overwrite:
+            os.remove(args.dbname)
         else:
-            raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True
-                    keyword.""".format(os.path.join(os.getcwd(), fname)))
+            raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True keyword.""".format(
+                                   os.path.join(os.getcwd(), args.dbname)))
 
 def main(args):
 
-    check_db_exists(args.dbname, args.overwrite)
+    check_db_exists(args)
 
     if args.source == 'hist':
         db_from_hist(args)
