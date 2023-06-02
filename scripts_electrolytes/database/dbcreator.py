@@ -17,6 +17,7 @@ from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
     or in .cfg format (to be used with MTP/mlip-2 code).
 
     Simply call python dbcreator.py --<OPTION1> <value1> -- <OPTION2> <value2> etc.
+    or load one of the classes, providing the required arguments
 
     Options: dbname: filename for the creater database
 
@@ -46,65 +47,120 @@ from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
         python dbcreator.py --help
 
 '''
+class DbCreator:
 
-def db_from_hist(args):
+    def __init__(self, dbname, mdskip, initstep, overwrite):
 
-    hist = HistFile(args.fname)
-
-    structures = hist.structures
-    energies = hist.etotals
-    forces = hist.reader.read_value('fcart')
-    stresses = hist.reader.read_value('strten')
-
-    db = create_database(args)
-    dblst = list(range(args.initstep, hist.num_steps, args.mdskip))
-    print(dblst[:10])
-    for i in dblst:
-
-        atoms = convert_structure(args, structures[i])
-        energy = energies[i]  # in eV
-        current_forces = forces[i, :, :] * ha_to_ev/bohr_to_ang  # in eV/ang
-        current_stress = stresses[i, :] * ha_to_ev/(bohr_to_ang**3)  # in eV/ang^3
-        add_to_database(args, db, atoms, energy, current_forces, current_stress)
+        self.dbname = dbname
+        self.mdskip = mdskip
+        self.initstep = initstep
+        self.overwrite = overwrite
 
 
-# make one function for the ASE db format and one for the MTP-MLIP .cfg format
+    def db_from_hist(self, fname):
 
-def db_from_gsr(args):
+        hist = HistFile(fname)
 
-    raise NotImplementedError('db creation from GSR files not yet implemented')
-    # Find all GSR.nc files in PATH
-    # fname = [f for f in os.listdir(args.path) if f.endswith("GSR.nc")]
+        structures = hist.structures
+        energies = hist.etotals
+        forces = hist.reader.read_value('fcart')
+        stresses = hist.reader.read_value('strten')
 
-    # NOTE: ase.io.read() can read the format abinit-gsr
-    # I could also simply use the to_ase_atoms class method
+        db = self.create_database()
+        dblst = list(range(self.initstep, hist.num_steps, self.mdskip))
+
+        for i in dblst:
+
+            atoms = self.convert_structure(structures[i])
+            energy = energies[i]  # in eV
+            current_forces = forces[i, :, :] * ha_to_ev/bohr_to_ang  # in eV/ang
+            current_stress = stresses[i, :] * ha_to_ev/(bohr_to_ang**3)  # in eV/ang^3
+            self.add_to_database(db, atoms, energy, current_forces, current_stress)
 
 
-def create_database(args):
+    def db_from_gsr(self, path):
 
-    if args.format == 'ase':
-        return connect(args.dbname)
+        # Find all GSR.nc files in PATH
+        # fname = [f for f in os.listdir(args.path) if f.endswith("GSR.nc")]
 
-    elif args.format == 'mtp':
-        if not args.dbname.endswith('.cfg'):
-            args.dbname = '{}.cfg'.format(args.dbname)
-        return open(args.dbname, 'w')
+        # NOTE: ase.io.read() can read the format abinit-gsr
+        # I could also simply use the to_ase_atoms class method
+        x=1
 
-def convert_structure(args, struct):
+class MtpDbCreator(DbCreator):
 
-    if args.format == 'ase':
-        return abistruct_to_ase(struct)
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False):
 
-    elif args.format == 'mtp':
+        super(MtpDbCreator, self).__init__(dbname, mdskip, initstep, overwrite)
+        self.check_db_exists()
+
+
+    def check_db_exists(self):
+
+        if not self.dbname.endswith('.cfg'):
+            self.dbname = '{}.cfg'.format(self.dbname)
+
+        if os.path.exists(os.path.join(os.getcwd(), self.dbname)):
+            if self.overwrite:
+                os.remove(self.dbname)
+            else:
+                raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True keyword.""".format(
+                                       os.path.join(os.getcwd(), self.dbname)))
+
+
+    def create_database(self):
+        return open(self.dbname, 'w')
+
+
+    def convert_structure(self, struct):
         return struct
 
 
-def add_to_database(args, db, atoms, energy, forces, stresses):
-
-    if args.format == 'ase':
-        db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
-    elif args.format == 'mtp':
+    def add_to_database(self, db, atoms, energy, forces, stresses):
         abistruct_to_cfg(db, atoms, energy=energy, forces=forces, stresses=stresses)
+
+
+
+class AseDbCreator(DbCreator):
+
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False):
+
+        super(AseDbCreator, self).__init__(dbname, mdskip, initstep, overwrite)
+        self.check_db_exists()
+
+
+    def check_db_exists(self):
+
+        if not self.dbname.endswith('.db'):
+            self.dbname = '{}.db'.format(self.dbname)
+
+        if os.path.exists(os.path.join(os.getcwd(), self.dbname)):
+            if self.overwrite:
+                os.remove(self.dbname)
+            else:
+                raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True keyword.""".format(
+                                       os.path.join(os.getcwd(), self.dbname)))
+
+    
+    def create_database(self):
+        return connect(self.dbname)
+
+
+    def convert_structure(self, struct):
+        return abistruct_to_ase(struct)
+
+
+    def add_to_database(self, db, atoms, energy, forces, stresses):
+        db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
+
+
+
+###################################
+
+# make one function for the ASE db format and one for the MTP-MLIP .cfg format
+
+
+
 
 
 def create_parser():
@@ -133,29 +189,19 @@ def check_parser(args, parser):
         parser.error("--source 'hist' requires --fname argument")
 
 
-def check_db_exists(args):
-
-    if args.format == 'ase' and not args.dbname.endswith('.db'):
-        args.dbname = '{}.db'.format(args.dbname)
-    elif args.format == 'mtp' and not args.dbname.endswith('.cfg'):
-        args.dbname = '{}.cfg'.format(args.dbname)
-
-    if os.path.exists(os.path.join(os.getcwd(), args.dbname)):
-        if args.overwrite:
-            os.remove(args.dbname)
-        else:
-            raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True keyword.""".format(
-                                   os.path.join(os.getcwd(), args.dbname)))
 
 def main(args):
 
-    check_db_exists(args)
+    if args.format == 'mtp':
+        db = MtpDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite)
+    elif args.format == 'ase':
+        db = AseDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite)
 
     if args.source == 'hist':
-        db_from_hist(args)
+        db.db_from_hist(args.fname)
 
     elif args.source == 'gsr':
-        raise NotImplementedError("Dataase creation from GSR.nc files is not yet implemented,")
+        db.db_from_gsr(args.path)
 
 
 if __name__ == "__main__":
