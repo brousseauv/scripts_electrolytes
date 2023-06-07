@@ -14,3 +14,7 @@ hartree_energy_ev = cst.physical_constants['Hartree energy in eV'][0]
 
 # Boltzmann constant in eV/K
 boltzmann_evK = cst.physical_constants['Boltzmann constant in eV/K'][0]
+
+# Conversion factors for stress units
+evang3_to_gpa = 160.21766208
+gpa_to_evang3 = 1./evang3_to_gpa

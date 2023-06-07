@@ -3,11 +3,12 @@
 import argparse
 import os
 from abipy.dynamics.hist import HistFile
+from abipy.abilab import abiopen
 from ase.db import connect
 from scripts_electrolytes.interfaces.ase_interface import abistruct_to_ase
 from scripts_electrolytes.interfaces.mtp_interface import abistruct_to_cfg
-from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
-
+from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang, gpa_to_evang3
+import glob
 
 # FIX ME: would this better work as classes?
 '''
@@ -49,12 +50,13 @@ from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
 '''
 class DbCreator:
 
-    def __init__(self, dbname, mdskip, initstep, overwrite):
+    def __init__(self, dbname, mdskip, initstep, overwrite, append):
 
         self.dbname = dbname
         self.mdskip = mdskip
         self.initstep = initstep
         self.overwrite = overwrite
+        self.append = append
 
 
     def db_from_hist(self, fname):
@@ -80,18 +82,26 @@ class DbCreator:
 
     def db_from_gsr(self, path):
 
-        # Find all GSR.nc files in PATH
-        # fname = [f for f in os.listdir(args.path) if f.endswith("GSR.nc")]
+        # List of all GSR.nc files in path
+        gsr_list = glob.glob(os.path.join(path, '**/*GSR.nc') ,recursive=True)
+        # print(gsr_list)
 
-        # NOTE: ase.io.read() can read the format abinit-gsr
-        # I could also simply use the to_ase_atoms class method
-        x=1
+        db = self.create_database()
+        for fname in gsr_list:
+            gsr = abiopen(fname)
+            structure = gsr.structure
+            atoms = self.convert_structure(structure)
+            energy = gsr.energy
+            current_forces = gsr.cart_forces  # already in eV/ang
+            current_stress = gsr.reader.read_value('cartesian_stress_tensor') * ha_to_ev/(bohr_to_ang**3) # convert from ha_bohr3 to eV/ang^3 
+            self.add_to_database(db, atoms, energy, current_forces, current_stress)
+
 
 class MtpDbCreator(DbCreator):
 
-    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False):
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False):
 
-        super(MtpDbCreator, self).__init__(dbname, mdskip, initstep, overwrite)
+        super(MtpDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append)
         self.check_db_exists()
 
 
@@ -103,13 +113,18 @@ class MtpDbCreator(DbCreator):
         if os.path.exists(os.path.join(os.getcwd(), self.dbname)):
             if self.overwrite:
                 os.remove(self.dbname)
+            elif self.append:
+                return
             else:
-                raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True keyword.""".format(
+                raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True or --append True keywords.""".format(
                                        os.path.join(os.getcwd(), self.dbname)))
 
 
     def create_database(self):
-        return open(self.dbname, 'w')
+        if self.append:
+            return open(self.dbname, 'a')
+        else:
+            return open(self.dbname, 'w')
 
 
     def convert_structure(self, struct):
@@ -123,9 +138,9 @@ class MtpDbCreator(DbCreator):
 
 class AseDbCreator(DbCreator):
 
-    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False):
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False):
 
-        super(AseDbCreator, self).__init__(dbname, mdskip, initstep, overwrite)
+        super(AseDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append)
         self.check_db_exists()
 
 
@@ -137,12 +152,15 @@ class AseDbCreator(DbCreator):
         if os.path.exists(os.path.join(os.getcwd(), self.dbname)):
             if self.overwrite:
                 os.remove(self.dbname)
+            elif self.append:
+                return
             else:
                 raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True keyword.""".format(
                                        os.path.join(os.getcwd(), self.dbname)))
 
     
     def create_database(self):
+        # FIX ME: test if this appends to the db.
         return connect(self.dbname)
 
 
@@ -177,6 +195,7 @@ def create_parser():
     parser.add_argument("--mdskip", type=int, default=10, help="Database will include every 'mdskip' configuration")
     parser.add_argument("--initstep", type=int, default=0, help="Index of the first configuration selected")
     parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
+    parser.add_argument("--append", type=bool, default=False, help="Should data be appended to existing database or not")
 
     return parser
 
@@ -193,9 +212,9 @@ def check_parser(args, parser):
 def main(args):
 
     if args.format == 'mtp':
-        db = MtpDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite)
+        db = MtpDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append)
     elif args.format == 'ase':
-        db = AseDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite)
+        db = AseDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append)
 
     if args.source == 'hist':
         db.db_from_hist(args.fname)

@@ -1,6 +1,7 @@
 from abipy.abilab import Structure
 import json
 from abipy.abio.inputs import AbinitInput
+from abipy.abio.abivars import is_abivar
 
 def poscar_to_abivars(vasp_fname):
 
@@ -12,21 +13,41 @@ def poscar_to_abivars(vasp_fname):
 
 def load_abivars(fname):
 
-    return json.load(open(fname))
+    # extract the pseudo variables from the dictionnary, to work with AbinitInput class
+    abivars = json.load(open(fname))
 
-def input_from_dict(struct, myvars):
-    # write an abinit input file from a dictionnaryo
-    #with open('input.abi', 'w') as f:
-    #    for key in data.keys():
-    #        f.write('{} {}\n'.format(key, data[key]))
-    pseudos = myvars['pseudos']
-    pp_dirpath = myvars['pp_dirpath']
-    myvars.pop('pseudos', None)
-    myvars.pop('pp_dirpath', None)
-    myvars['indata_prefix'] = None
-    myvars['outdata_prefix'] = None
-    myvars['tmpdata_prefix'] = None
+    check_abivars(abivars)
 
-    abi_input = AbinitInput(struct, pseudos, pseudo_dir=pp_dirpath, abi_kwargs=myvars)
+    abipseudos = {'pseudos': abivars['pseudos'],
+                  'pp_dirpath': abivars['pp_dirpath']}
+    abivars.pop('pseudos', None)
+    abivars.pop('pp_dirpath', None)
+
+    abivars['indata_prefix'] = None
+    abivars['outdata_prefix'] = None
+    abivars['tmpdata_prefix'] = None
+
+    # deactivate default outputs, except for gsr
+    prtkeys = ["prtden", "prteig", "prtwf"]
+    for key in prtkeys:
+        if not key in abivars:
+            abivars[key] = 0
+    abivars['prtgsr'] = 1
+
+    return abivars, abipseudos
+
+
+def check_abivars(myvars):
+    fixvars = []
+    for key in myvars.keys():
+        if not is_abivar(key):
+            fixvars.append(key)
+            #print('{} is not an Abinit variable'.format(key))
+    if len(fixvars)>0:
+        raise ValueError('{} are not Abinit variables'.format(fixvars))
+
+def input_from_dict(struct, myvars, mypseudos):
+
+    abi_input = AbinitInput(struct, mypseudos['pseudos'], pseudo_dir=mypseudos['pp_dirpath'], abi_kwargs=myvars)
     abi_input.write()
 
