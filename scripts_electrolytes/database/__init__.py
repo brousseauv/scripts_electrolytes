@@ -1,2 +1,1 @@
-from .dbcreator import *
-from .dbsplitter import *
+''' Classes to create and operate on databases '''

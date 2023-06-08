@@ -1,14 +1,16 @@
 import os
+import logging
 import subprocess as subp
 from ..interfaces.abinit_interface import poscar_to_abivars, load_abivars, input_from_dict
 from ..interfaces.slurm_interface import SlurmWatcher
-from ..database.dbcreator import MtpDbCreator
+from ..database.db_creator import MtpDbCreator
 
 class OtfMtpTrainer:
 
     def __init__(self, mtp_path=None, init_mtp=None, init_train_db=None, abi_input=None,
                  dft_job_args=None, dft_job_script=None, username=None, train_job_args=None,
-                 train_job_script=None, valid_db=None, submit=True):
+                 train_job_script=None, valid_db=None, submit=True, abicommand=None,
+                 restart_iterstep=None):
 
         if not mtp_path:
             raise ValueError('Must provide path to MLP executable in mlp_path')
@@ -47,6 +49,11 @@ class OtfMtpTrainer:
                 raise ValueError("When submit=True, must provide Slurm username as username for job monitoring.")
             else:
                 self.username = username
+        else:
+            if not abicommand:
+                raise ValueError("When submit=False, must provide abinit command as abicommand.")
+            else:
+                self.abicommand = abicommand
 
 
         if dft_job_args:
@@ -60,8 +67,12 @@ class OtfMtpTrainer:
         self.valid_db = os.path.abspath(valid_db)
         self.submit = submit
 
-        self.initiate_training()
+        self.restart_iterstep = restart_iterstep
+        if not self.restart_iterstep:
+            self.initiate_training()
         self.set_abivars(abi_input)
+        
+        logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
     def initiate_training(self):
@@ -85,8 +96,14 @@ class OtfMtpTrainer:
 
         ##########
         ## THIS WILL BE THE WHILE LOOP
-        while self.iterstep<5: # will be while fiished=False, with a condition on the number of preselected configurations
-            print('Starting active learning step {}'.format(self.iterstep))
+        if self.restart_iterstep:
+            self.iterstep = self.restart_iterstep
+            self.owd = os.getcwd()
+
+#        while self.iterstep<8: # will be while fiished=False, with a condition on the number of preselected configurations
+        while finished == False:  
+
+            logging.info('Starting OTF learning step {}'.format(self.iterstep))
             # remove the while, do a single run before 
             iterdir = '{}'.format(self.iterstep)
             os.makedirs(iterdir, exist_ok=True) 
@@ -94,14 +111,15 @@ class OtfMtpTrainer:
             os.chdir(self.iterdir)
 
 
-            self.run(['echo "\nActive learning step {}">>iter_output.txt'.format(self.iterstep)])
+            self.run(['echo "\nOTF learning step {}">>iter_output.txt'.format(self.iterstep)])
             self.compute_als()
             self.mdrun_select()
             self.select_configs()
             nselect = self.check_configs()
             if nselect>0:
                 self.launch_dft(nselect)
-                self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs...')
+                if self.submit:
+                    self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs...')
                 # check jobs output, relaunch if necessary
                 # self.check_dft_output -> is it finished, is it converged, does it have TIME LIMIT / oom handler etc. for relaunch
                 # aggregate configs and add to training set
@@ -109,19 +127,20 @@ class OtfMtpTrainer:
                 # I can do this one then work on the check status and relaunch options.
                 # retrain model
                 self.train_model()
-                self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
+                if self.submit:
+                    self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
 
                 self.iterstep += 1
-                print('going to iterstep {}'.format(self.iterstep))
                 os.chdir(self.owd)
 
             else:
                 finished = True
                 os.chdir(self.owd)
 
-        self.run('echo "Active learning scheme completed after {} steps"'.format(self.iterstep))
+        logging.info("OTF learning scheme completed after {} steps".format(self.iterstep))
 
     def compute_als(self):
+        logging.info('    Selecting configurations...')
         self.run('echo "  Active set construction...">>iter_output.txt')
         command = '{} calc-grade ../{}/current.mtp ../{}/train.cfg ../{}/train.cfg out.cfg --als-filename=state.als>>iter_output.txt'.format(
                   self.mtp, self.iterstep-1, self.iterstep-1, self.iterstep-1)
@@ -150,6 +169,7 @@ class OtfMtpTrainer:
         return nselect
 
     def launch_dft(self, njobs):
+        logging.info('    Running DFT calculcations...')
         self.run('echo "  Preparing and launching DFT calculations. This may take some time.">>iter_output.txt')
         os.makedirs('calc', exist_ok=True)
         self.calcdir = os.path.abspath('calc')
@@ -177,22 +197,23 @@ class OtfMtpTrainer:
         workdir = self.create_workdir(j)
         os.chdir(workdir)
 
-        # do some stuff
-        # create abi input
         self.write_abi_input(struct)
-        # launch job
-        if self.dft_job_args:
-            self.dft_job_args = self.dft_job_args + ' --job-name=iter{}_config{}'.format(self.iterstep, j)
+        
+        if self.submit:
+            if self.dft_job_args:
+                self.dft_job_args = self.dft_job_args + ' --job-name=iter{}_config{}'.format(self.iterstep, j)
+            else:
+                self.dft_job_args = ' --job-name=iter{}_config{}'.format(self.iterstep, j)
+            command = "sbatch {} {}".format(self.dft_job_args, self.dft_jobscript)
         else:
-            self.dft_job_args = ' --job-name=iter{}_config{}'.format(self.iterstep, j)
-        command = "sbatch {} {}".format(self.dft_job_args, self.dft_jobscript)
+            command = "srun {} run.abi>& log".format(self.abicommand)
         self.run(command)
         os.chdir(self.calcdir)
 
 
-    def watch_jobs(self, rootname):
+    def watch_jobs(self, rootname, msg):
         watcher = SlurmWatcher(rootname, self.username)
-        watcher.watch()
+        watcher.watch(msg=msg)
 
 
     def collect_dft(self):
@@ -216,38 +237,42 @@ class OtfMtpTrainer:
 
     def train_model(self):
         # Start new training from the fitted potential from the previous iteration
-        self.run('echo "  Training potential from updated training set. This may take some time.">>iter_output.txt')
-        if self.train_job_args:
-            self.train_job_args = self.train_job_args + ' --job-name=iter{}_train'.format(self.iterstep)
-        else:
-            self.train_job_args = ' --job-name=iter{}_train'.format(self.iterstep)
 
-        # will need a train_job.sh example file and train_job_params, in opposition to dft job params (modify this after)
-        # --update-mindist to be tested!!!
-        #prev = os.path.abspath('prev.mtp')
-        #train = os.path.abspath('train.cfg')
+        logging.info('    Retraining MTP potential...')
+        self.run('echo "  Training potential from updated training set. This may take some time.">>iter_output.txt')
+
         if self.valid_db:
             traincommand = "{} train prev.mtp train.cfg --trained-pot-name=current.mtp --valid-cfgs={} --update-mindist".format(self.mtp, self.valid_db)
         else:
             traincommand = "{} train prev.mtp train.cfg --trained-pot-name=current.mtp --update-mindist".format(self.mtp)
 
-        # copy the submission file to current dir
-        # and replace a tagged keyword with the current string
-        # FIX ME: this is a little sketchy but for now it works. 
-        # Could be improved though
-        # Perhaps keep only the header, i.e. the .sh script up to the mlp train command ?
-        self.run('cp {} train.sh'.format(self.train_jobscript))
-#        with open('train.sh', 'r+') as f:
-#            content = f.read()
-#            content = content.replace('mytraincommand', '{}'.format(traincommand))
-#            f.seek(0)
-#            f.write(content)
 
-        # version 2: append command after header
-        with open('train.sh', 'a') as f:
-            f.write('srun {} >&train_$SLURM_JOB_ID.out'.format(traincommand))
+        if self.submit:
+            if self.train_job_args:
+                self.train_job_args = self.train_job_args + ' --job-name=iter{}_train'.format(self.iterstep)
+            else:
+                self.train_job_args = ' --job-name=iter{}_train'.format(self.iterstep)
 
-        runcommand = "sbatch {} train.sh".format(self.train_job_args)
+            # copy the submission file to current dir
+            # and replace a tagged keyword with the current string
+            # FIX ME: this is a little sketchy but for now it works. 
+            # Could be improved though
+            # Perhaps keep only the header, i.e. the .sh script up to the mlp train command ?
+            self.run('cp {} train.sh'.format(self.train_jobscript))
+    #        with open('train.sh', 'r+') as f:
+    #            content = f.read()
+    #            content = content.replace('mytraincommand', '{}'.format(traincommand))
+    #            f.seek(0)
+    #            f.write(content)
+
+            # version 2: append command after header
+            with open('train.sh', 'a') as f:
+                f.write('srun {} >&train_$SLURM_JOB_ID.out'.format(traincommand))
+
+            runcommand = "sbatch {} train.sh".format(self.train_job_args)
+        else:
+            runcommand = 'srun {} >&train.out'.format(traincommand)
+
         self.run(runcommand)
 
     def write_abi_input(self, struct):
