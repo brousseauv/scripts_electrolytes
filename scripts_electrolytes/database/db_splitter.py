@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from ase.db import connect
 
 '''
@@ -88,8 +89,8 @@ class MtpDbSplitter(DbSplitter):
         configs.append(current_config)
 
         split = self.appendtxt.split(' ')
-        out_db1, out_db2 = (self.dbname.split('.cfg')[0] + '_{}.cfg'.format(split[0]), 
-                            self.dbname.split('.cfg')[0] + '_{}.cfg'.format(split[1]))
+        out_db1, out_db2 = (os.path.basename(self.dbname).split('.cfg')[0] + '_{}.cfg'.format(split[0]), 
+                            os.path.basename(self.dbname).split('.cfg')[0] + '_{}.cfg'.format(split[1]))
 
         if self.split_fraction:
             ndata = int(np.floor(self.split_fraction*len(configs)))
@@ -102,6 +103,7 @@ class MtpDbSplitter(DbSplitter):
 
         cfg1, cfg2 = (open(out_db1, 'w'), 
                       open(out_db2, 'w'))
+
         for idx in idx1:
             self.write_config(cfg1, configs[idx]) 
         for idx in idx2:

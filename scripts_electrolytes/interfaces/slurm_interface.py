@@ -1,5 +1,5 @@
 from subprocess import run
-from datetime import datetime
+from ..utils.time import when_is_now
 
 class SlurmWatcher:
 
@@ -22,7 +22,9 @@ class SlurmWatcher:
         while jobs_left>0:
             # Decide if it should be just overwrite (>) or append (>>)
             # I could also echo to the command line as it is intended to run from a terminal maybe using nohup
-            run("echo {}: {} jobs left>>status.txt".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S"), jobs_left), shell=True)
+#            run("echo {}: {} jobs left>>status.txt".format(datetime.now().strftime("%d/%m/%Y %H:%M:%S"), jobs_left), shell=True)
+            run("echo {}: {} jobs left>>status.txt".format(when_is_now(), jobs_left), shell=True)
+
             run('sleep {}'.format(wait_time), shell=True)
             jobs_left = int(run(command, shell=True, capture_output=True).stdout)
 

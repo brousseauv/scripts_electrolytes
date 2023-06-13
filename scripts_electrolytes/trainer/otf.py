@@ -4,6 +4,7 @@ import subprocess as subp
 from ..interfaces.abinit_interface import poscar_to_abivars, load_abivars, input_from_dict
 from ..interfaces.slurm_interface import SlurmWatcher
 from ..database.db_creator import MtpDbCreator
+from ..utils.time import when_is_now, increase_jobtime
 
 class OtfMtpTrainer:
 
@@ -89,13 +90,11 @@ class OtfMtpTrainer:
 
 
     def train_from_lammpsmd(self, lammps_path=None, md_nsteps=10000, lammps_input=None, lammps_struct=None, mlip_ini=None, temp=None,
-                            atomic_species=None):
+                            atomic_species=None, relaunch=True):
 
-        self.set_variables(lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species)
+        self.set_variables(lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species, relaunch)
         finished = False
 
-        ##########
-        ## THIS WILL BE THE WHILE LOOP
         if self.restart_iterstep:
             self.iterstep = self.restart_iterstep
             self.owd = os.getcwd()
@@ -103,8 +102,7 @@ class OtfMtpTrainer:
 #        while self.iterstep<8: # will be while fiished=False, with a condition on the number of preselected configurations
         while finished == False:  
 
-            logging.info('Starting OTF learning step {}'.format(self.iterstep))
-            # remove the while, do a single run before 
+            logging.info('{}: Starting OTF learning step {}'.format(when_is_now(), self.iterstep))
             iterdir = '{}'.format(self.iterstep)
             os.makedirs(iterdir, exist_ok=True) 
             self.iterdir = os.path.abspath(iterdir)
@@ -112,35 +110,46 @@ class OtfMtpTrainer:
 
 
             self.run(['echo "\nOTF learning step {}">>iter_output.txt'.format(self.iterstep)])
+            # Compute active learning state
             self.compute_als()
+            # LAMMPS MD run to preselect extrapolative configurations
             self.mdrun_select()
-            self.select_configs()
-            nselect = self.check_configs()
-            if nselect>0:
+            # Check if configurations were preselected during the MD run
+            npreselect = self.check_configs('preselected.cfg')
+            if npreselect>0:
+                # Select configurations for DFT calculations
+                self.select_configs()
+                nselect = self.check_configs('add_to_train.cfg')
+                # Evaluate selected configurations with DFT
                 self.launch_dft(nselect)
-                if self.submit:
-                    self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs...')
-                # check jobs output, relaunch if necessary
-                # self.check_dft_output -> is it finished, is it converged, does it have TIME LIMIT / oom handler etc. for relaunch
-                # aggregate configs and add to training set
+#                if self.submit:
+#                    self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs...')
+                # Check job outputs and relaunch if necessary/requested
+                dft_error = self.check_dft_output(nselect)
+                if dft_error:
+                    self.relaunch_dft(nselect)
+
+                # Collect energy/forces/stresses from DFT data
                 self.collect_dft()
-                # I can do this one then work on the check status and relaunch options.
-                # retrain model
+                # Retrain MTP potential
                 self.train_model()
-                if self.submit:
-                    self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
+#                if self.submit:
+#                    self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
 
                 self.iterstep += 1
                 os.chdir(self.owd)
 
             else:
                 finished = True
+                self.run('cp prev.mtp {}/final.mtp'.format(self.owd))
+                self.run('cp ../{}/train.cfg {}/final.cfg'.format(self.iterstep-1, self.owd))
+                self.run('echo "  No extrapolative configuration were preselected.">>iter_output.txt')
                 os.chdir(self.owd)
 
-        logging.info("OTF learning scheme completed after {} steps".format(self.iterstep))
+        logging.info("{}: OTF learning scheme completed after {} steps".format(when_is_now(), self.iterstep))
 
     def compute_als(self):
-        logging.info('    Selecting configurations...')
+        logging.info('    {}: Selecting configurations...'.format(when_is_now()))
         self.run('echo "  Active set construction...">>iter_output.txt')
         command = '{} calc-grade ../{}/current.mtp ../{}/train.cfg ../{}/train.cfg out.cfg --als-filename=state.als>>iter_output.txt'.format(
                   self.mtp, self.iterstep-1, self.iterstep-1, self.iterstep-1)
@@ -151,6 +160,7 @@ class OtfMtpTrainer:
     def mdrun_select(self):
         self.run('echo "  Running MD trajectory...">>iter_output.txt')
         self.run(['cp ../{}/current.mtp prev.mtp'.format(self.iterstep-1)])
+        self.run('touch preselected.cfg')
         command = '{} -v SEED 1 -v T {} -v NSTEP {} -v MLIP_INI {} -v STRUCT {} -log none -in {} &>lammps.log'.format(
                 self.lammps, self.temperature, self.mdsteps, self.mlip_ini, self.lammps_struct, self.lammps_input)
         self.run(command)
@@ -164,12 +174,12 @@ class OtfMtpTrainer:
         self.run('rm state.als')
 
 
-    def check_configs(self):
-        nselect = int(subp.run('grep BEGIN_CFG add_to_train.cfg | wc -l', shell=True, capture_output=True).stdout)
+    def check_configs(self, fname):
+        nselect = int(subp.run('grep BEGIN_CFG {} | wc -l'.format(fname), shell=True, capture_output=True).stdout)
         return nselect
 
     def launch_dft(self, njobs):
-        logging.info('    Running DFT calculcations...')
+        logging.info('    {}: Running DFT calculcations...'.format(when_is_now()))
         self.run('echo "  Preparing and launching DFT calculations. This may take some time.">>iter_output.txt')
         os.makedirs('calc', exist_ok=True)
         self.calcdir = os.path.abspath('calc')
@@ -186,11 +196,13 @@ class OtfMtpTrainer:
             for j in range(njobs):
                 self.launch_job(j, 'POSCAR{}'.format(j))
 
-        os.chdir(self.iterdir) # returning to the iter directory
+        # Monitor job status if submitted to the queue
+        if self.submit:
+            self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs...')
+
 
     def launch_job(self, j, config):
-
-        # submit jobs. This would work better with a shell scripts, though...
+        # Must be run from calcdir
         self.fix_poscar(config)
         struct = poscar_to_abivars(config)
 
@@ -201,10 +213,10 @@ class OtfMtpTrainer:
         
         if self.submit:
             if self.dft_job_args:
-                self.dft_job_args = self.dft_job_args + ' --job-name=iter{}_config{}'.format(self.iterstep, j)
+                dft_job_args = self.dft_job_args + ' --job-name=iter{}_config{}'.format(self.iterstep, j)
             else:
-                self.dft_job_args = ' --job-name=iter{}_config{}'.format(self.iterstep, j)
-            command = "sbatch {} {}".format(self.dft_job_args, self.dft_jobscript)
+                dft_job_args = ' --job-name=iter{}_config{}'.format(self.iterstep, j)
+            command = "sbatch {} {}".format(dft_job_args, self.dft_jobscript)
         else:
             command = "srun {} run.abi>& log".format(self.abicommand)
         self.run(command)
@@ -212,33 +224,24 @@ class OtfMtpTrainer:
 
 
     def watch_jobs(self, rootname, msg):
+        os.chdir(self.iterdir)
         watcher = SlurmWatcher(rootname, self.username)
         watcher.watch(msg=msg)
 
 
     def collect_dft(self):
-        # Here we are inside self.calcdir
+        os.chdir(self.iterdir)
         self.run('echo "  Collecting DFT results...">>iter_output.txt')
         self.run('cp {}/../{}/train.cfg .'.format(self.iterdir, self.iterstep-1))
         db = MtpDbCreator(dbname='train.cfg', append=True)
         db.db_from_gsr(self.calcdir)
 
 
-    def fix_poscar(self, fname):
-        # fix the POSCAR files produced by MTP as they do not include atomic species information
-        # According to the VASP wiki, this line should always be the 6th line, as the 5 first are mandatory
-        with open(fname, 'r+') as f:
-            content = f.readlines()
-            string = ' '+' '.join(self.atomic_species)+'\n'
-            content.insert(5, string)
-            f.seek(0)
-            f.writelines(content)
-
-
     def train_model(self):
         # Start new training from the fitted potential from the previous iteration
-
-        logging.info('    Retraining MTP potential...')
+        # Must run in iterdir
+        os.chdir(self.iterdir)
+        logging.info('    {}: Retraining MTP potential...'.format(when_is_now()))
         self.run('echo "  Training potential from updated training set. This may take some time.">>iter_output.txt')
 
         if self.valid_db:
@@ -249,9 +252,9 @@ class OtfMtpTrainer:
 
         if self.submit:
             if self.train_job_args:
-                self.train_job_args = self.train_job_args + ' --job-name=iter{}_train'.format(self.iterstep)
+                train_job_args = self.train_job_args + ' --job-name=iter{}_train'.format(self.iterstep)
             else:
-                self.train_job_args = ' --job-name=iter{}_train'.format(self.iterstep)
+                train_job_args = ' --job-name=iter{}_train'.format(self.iterstep)
 
             # copy the submission file to current dir
             # and replace a tagged keyword with the current string
@@ -269,11 +272,142 @@ class OtfMtpTrainer:
             with open('train.sh', 'a') as f:
                 f.write('srun {} >&train_$SLURM_JOB_ID.out'.format(traincommand))
 
-            runcommand = "sbatch {} train.sh".format(self.train_job_args)
+            runcommand = "sbatch {} train.sh".format(train_job_args)
         else:
             runcommand = 'srun {} >&train.out'.format(traincommand)
 
         self.run(runcommand)
+        # Monitor training job if submitted to the queue
+        if self.submit:
+            self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
+
+
+    def fix_poscar(self, fname):
+        # fix the POSCAR files produced by MTP as they do not include atomic species information
+        # According to the VASP wiki, this line should always be the 6th line, as the 5 first are mandatory
+        with open(fname, 'r+') as f:
+            content = f.readlines()
+            string = ' '+' '.join(self.atomic_species)+'\n'
+            content.insert(5, string)
+            f.seek(0)
+            f.writelines(content)
+
+
+    def check_dft_output(self, njobs):
+        os.chdir(self.calcdir)
+        self.failed_calc_index = []
+        self.errormsg = []
+
+        for j in range(njobs):
+            # Check for some typical errors
+            scf = self.check_process('grep -A2 ScfConvergenceWarning config{}/log*'.format(j))
+            if scf.returncode == 0:
+                self.failed_calcs.append(j)
+                self.errormsg.append('scfconv')
+                # update nstep in abivars dictionnary
+                nstep = int(str(scf.stdout).split('nstep ')[1].split(' ')[0])
+                self.abivars['nstep'] = int(1.5*nstep)
+                continue
+
+            oom = self.check_process('grep  "out-of-memory handler" config{}/log*'.format(j))
+            if oom.returncode == 0:
+                self.failed_calcs.append(j)
+                self.errormsg.append('memory')
+                continue
+
+            time = self.check_process('grep  "TIME LIMIT" config{}/log*'.format(j))
+            if time.returncode == 0:
+                self.failed_calcs.append(j)
+                self.errormsg.append('timelimit')
+                continue
+
+            end_ok = self.check_process('grep  "Calculation completed" config{}/log*'.format(j))
+            if end_ok.returncode != 0:
+                self.failed_calcs.append(j)
+                self.errormsg.append('unknown')
+                continue
+
+        if len(self.failed_calc_index)>0:
+            return True
+        else:
+            return False
+
+
+    def check_process(self, command):
+        output = subp.run(command, shell=True, capture_output=True)
+        return output
+
+
+    def relaunch_dft(self, njobs):
+
+        os.chdir(self.calcdir) # launching must be done from calcdir
+        if not relaunch:
+            raise Exception('Some exceptions occured in iterstep {} for configs {}: {}.Stopping OTF procedure.'.format(
+                            self.iterstep, self.failed_calc_index, self.errormsg))
+
+        nrelaunch = 0
+        while nrelaunch < self.max_relaunch:
+            os.chdir(self.calcdir)
+            for j, err in zip(self.failed_calc_index, self.errormsg):
+                if err == 'scfconv':
+                    try:
+                        self.launch_job(j, 'POSCAR{}'.format(j))
+                    except:
+                        self.launch_job(j, 'POSCAR')
+
+                if self.submit:  # "oom", "time" should only be relevant for submitted jobs. "unknown", well... check it out!
+                    # relaunch options, relaunch job if submit, modifying parameters as needed
+                    # errormsg : in "memory", "timelimit', 'unknown'
+                    if err == 'timelimit':
+                        # ADD A CHECK IF -t OR --time is in dft_job_args
+                        try:
+                            output = self.check_process("grep -- ' -t ' {}".format(self.dft_jobscript))
+                            time = str(output.stdout).split(' -t ')[1].split('\\n')[0]
+                        except:
+                            output = self.check_process("grep -- ' --time ' {}".format(self.dft_jobscript))
+                            time = str(output.stdout).split(' --time ')[1].split('\\n')[0]
+
+                        jobtime = increase_jobtime(time)
+                        arg = '--time {}'.format(jobtime)
+                        self.relaunch_dft_job(j, arg)
+                    
+                    if err == 'memory':
+                        try:
+                            output = self.check_process("grep -- ' -m ' {}".format(self.dft_jobscript))
+                            time = str(output.stdout).split(' -t ')[1].split('\\n')[0]
+                        except:
+                            output = self.check_process("grep -- ' --time ' {}".format(self.dft_jobscript))
+                            time = str(output.stdout).split(' --time ')[1].split('\\n')[0]
+
+                        jobtime = increase_jobtime(time, 1.25**nrelaunch)
+                        arg = '--time {}'.format(jobtime)
+                        self.relaunch_dft_job(j, arg)
+
+            os.chdir(self.iterdir) # returning to the iter directory for job monitoring
+            # Monitor job status if submitted to the queue
+            if self.submit:
+                self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs, relaunch={}...'.format(nrelaunch+1))
+
+            dft_error = self.check_dft_output(njobs) #-> break if not ok
+            if dft_error:
+                nrelaunch += 1
+            else:
+                return
+        
+        raise Exception('The number of DFT relaunch in iterstep {} reached max_relaunch = {}'.format(self.iterstep, self.max_relaunch))
+
+
+    def relaunch_dft_job(self, idx, arg):
+        # reset the dft_job_args with new arg and submit
+        os.chdir('config{}'.format(idx))
+        if self.dft_job_args:
+            dft_job_args = self.dft_job_args + ' --job-name=iter{}_config{} {}'.format(self.iterstep, idx, arg)
+        else:
+            dft_job_args = ' --job-name=iter{}_config{} {}'.format(self.iterstep, idx, arg)
+        command = "sbatch {} {}".format(dft_job_args, self.dft_jobscript)
+        self.run(command)
+        os.chdir(self.calcdir)
+
 
     def write_abi_input(self, struct):
         input_from_dict(struct, self.abivars, self.abipseudos)
@@ -294,7 +428,7 @@ class OtfMtpTrainer:
         return string
 
 
-    def set_variables(self,lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species):
+    def set_variables(self,lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species, relaunch):
         if not lammps_path:
             raise ValueError('Must provide path to LAMMPS executable as lammps_path')
         else:
@@ -326,5 +460,7 @@ class OtfMtpTrainer:
             self.atomic_species = atomic_species
 
         self.mdsteps = md_nsteps
+        self.max_relaunch = 2
+        self.relaunch = relaunch
 
 
