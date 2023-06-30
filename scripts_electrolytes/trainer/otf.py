@@ -149,7 +149,7 @@ class OtfMtpTrainer:
         logging.info("{}: OTF learning scheme completed after {} steps".format(when_is_now(), self.iterstep))
 
     def compute_als(self):
-        logging.info('    {}: Selecting configurations...'.format(when_is_now()))
+        logging.info('    {}: Creating active learning state...'.format(when_is_now()))
         self.run('echo "  Active set construction...">>iter_output.txt')
         command = '{} calc-grade ../{}/current.mtp ../{}/train.cfg ../{}/train.cfg out.cfg --als-filename=state.als>>iter_output.txt'.format(
                   self.mtp, self.iterstep-1, self.iterstep-1, self.iterstep-1)
@@ -158,6 +158,7 @@ class OtfMtpTrainer:
 
 
     def mdrun_select(self):
+        logging.info('    {}: Running MD trajectory...'.format(when_is_now()))
         self.run('echo "  Running MD trajectory...">>iter_output.txt')
         self.run(['cp ../{}/current.mtp prev.mtp'.format(self.iterstep-1)])
         self.run('touch preselected.cfg')
@@ -302,7 +303,7 @@ class OtfMtpTrainer:
             # Check for some typical errors
             scf = self.check_process('grep -A2 ScfConvergenceWarning config{}/log*'.format(j))
             if scf.returncode == 0:
-                self.failed_calcs.append(j)
+                self.failed_calc_index.append(j)
                 self.errormsg.append('scfconv')
                 # update nstep in abivars dictionnary
                 nstep = int(str(scf.stdout).split('nstep ')[1].split(' ')[0])
@@ -311,19 +312,19 @@ class OtfMtpTrainer:
 
             oom = self.check_process('grep  "out-of-memory handler" config{}/log*'.format(j))
             if oom.returncode == 0:
-                self.failed_calcs.append(j)
+                self.failed_calc_index.append(j)
                 self.errormsg.append('memory')
                 continue
 
             time = self.check_process('grep  "TIME LIMIT" config{}/log*'.format(j))
             if time.returncode == 0:
-                self.failed_calcs.append(j)
+                self.failed_calc_index.append(j)
                 self.errormsg.append('timelimit')
                 continue
 
             end_ok = self.check_process('grep  "Calculation completed" config{}/log*'.format(j))
             if end_ok.returncode != 0:
-                self.failed_calcs.append(j)
+                self.failed_calc_index.append(j)
                 self.errormsg.append('unknown')
                 continue
 
