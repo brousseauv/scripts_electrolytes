@@ -51,6 +51,7 @@ class MsdData:
         self.slope = np.polyfit(self.time, self.msd, 1)
         # Assume 3D diffusion, for which the slope of MSD vs t is 6D
         self.diffusion = 1E-4*self.slope[0]/6
+        # FIX ME: add standard deviation of diffusion coefficient fit
 
         return self.diffusion
 
