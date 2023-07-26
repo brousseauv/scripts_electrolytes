@@ -19,6 +19,7 @@ class LammpsMsdData(MsdData):
                             "dump-netcdf": similar to "dump" but in netCDF format
 
                 rootname: rootname for the .dat and .nc output files containing the computed information
+
         '''
 
         if filetype not in ['thermo', 'dump', 'dump-netcdf']:
@@ -31,7 +32,8 @@ class LammpsMsdData(MsdData):
 
     
     def compute_diffusion_coefficient(self, thermo_fname=None, timestep=None, atom_type='all', atomic_numbers=None, 
-                                      msd_type='bare', input_temperature=None, plot=False, plot_errors=False, **kwargs):
+                                      msd_type='bare', input_temperature=None, discard_init_steps=0, plot=False, 
+                                      plot_errors=False, **kwargs):
 
         '''
             thermo_fname: path to the thermo.dat file is already extracted from lammps.log
@@ -50,6 +52,10 @@ class LammpsMsdData(MsdData):
                         time slices equivalent to t (ex.: if t=2, average 2-0, 3-1, 4-2, etc.)
 
             input_temperature: Running temperature of the MD run. For "dump" filetype only.
+
+            discard_init_steps: Do not take the N first steps of the trajectory into account when computing MSD.
+                                Default: 0
+                                Note: only the default value can currently be used with "thermo" files.
 
             plot: activate plotting of MSD vs t
 
@@ -73,6 +79,9 @@ class LammpsMsdData(MsdData):
             self.natoms = None
             self.atom_type = 'See lammps input file'
 
+            if discard_init_steps != 0:
+                raise ValueError('With "thermo" files, discard_init_steps should be 0 (default value)')
+
         elif self.filetype == 'dump':
             if not timestep:
                 raise ValueError('Missing value for timestep (in ps)')
@@ -93,6 +102,8 @@ class LammpsMsdData(MsdData):
 
             logging.info('Extracting trajectories...')
             self.traj = read_traj_from_dump(self.fname, atomic_numbers)
+            # Discard some initial timesteps
+            self.traj = self.traj[discard_init_steps:]
             self.get_atoms_for_diffusion()
             self.nframes = len(self.traj)
             self.natoms = len(self.atom_indices)
