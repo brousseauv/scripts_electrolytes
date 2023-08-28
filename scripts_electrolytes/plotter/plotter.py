@@ -45,6 +45,8 @@ class Plotter:
         self.set_figname(kwargs.get('figname', defname))
         self.set_savefig(kwargs.get('savefig', True))
         self.set_showfig(kwargs.get('showfig', True))
+        self.set_marker(kwargs.get('marker', 'o'))
+        self.set_linecolor(kwargs.get('linecolor', False))
         try:
             self.set_title(kwargs.get('title'))
         except:
@@ -67,6 +69,12 @@ class Plotter:
 
     def set_showfig(self, showfig):
         self.showfig = showfig
+
+    def set_marker(self, marker):
+        self.marker = marker
+
+    def set_linecolor(self, col):
+        self.linecolor = col
 
     def add_title(self):
         self.ax.set_title(self.title, fontsize=self.labelsize)

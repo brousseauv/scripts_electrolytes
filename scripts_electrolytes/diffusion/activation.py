@@ -31,7 +31,7 @@ class ActivationEnergyData:
 
         self.inverse_temperature = 1./self.temperature
 
-    def compute_activation_energy(self, plot=False, **kwargs):
+    def compute_activation_energy(self, plot=False, plot_verbose=True, **kwargs):
 
         # Linear fit of ln(D(T)) vs 1/T. 
         fit, cov = np.polyfit(self.inverse_temperature, np.log(self.diffusion_coefficient), 1, cov=True)
@@ -41,10 +41,10 @@ class ActivationEnergyData:
         print('Activation energy = {:.3f}+-{:.3f} eV'.format(self.activation_energy, self.ea_std))
         
         if plot:
-            self.plot_activation_energy(defname='activation_energy.png', **kwargs)
+            self.plot_activation_energy(defname='activation_energy.png', verbose=plot_verbose, **kwargs)
 
 
-    def plot_activation_energy(self, **kwargs):
+    def plot_activation_energy(self, verbose=True, **kwargs):
         # this should be somewhere else!
         myplot = EaPlotter(**kwargs)
         myplot.set_line2d_params(**kwargs)
@@ -53,7 +53,8 @@ class ActivationEnergyData:
         y = self.d0*np.exp(-self.activation_energy/boltzmann_evK*self.inverse_temperature)
         myplot.ax.semilogy(1000*self.inverse_temperature, y, color=bright['red'])
 
-        myplot.ax.text(0.55, 0.90, r'E$_A$={:.3f}$\pm${:.3f} eV'.format(self.activation_energy, self.ea_std), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
+        if verbose:
+            myplot.ax.text(0.55, 0.90, r'E$_A$={:.3f}$\pm${:.3f} eV'.format(self.activation_energy, self.ea_std), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
         myplot.set_labels()
         try:
             myplot.add_title()

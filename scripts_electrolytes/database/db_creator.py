@@ -82,7 +82,6 @@ class DbCreator:
 
         # List of all GSR.nc files in path
         gsr_list = glob.glob(os.path.join(path, '**/*GSR.nc') ,recursive=True)
-        # print(gsr_list)
 
         db = self.create_database()
         for fname in gsr_list:

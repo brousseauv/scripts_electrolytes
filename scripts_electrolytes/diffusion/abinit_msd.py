@@ -52,7 +52,8 @@ class HistMsdData(MsdData):
         self.msd_atoms = self.compute_atoms_msd(displacements)
         self.msd = np.mean(self.msd_atoms, axis=1)
 
-    def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', plot=False, plot_errors=False, **kwargs):
+    def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', discard_init_steps=0, plot=False, plot_errors=False, 
+                                      plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
             atom_type: for which atoms the MSD must be computed. Currently, possible options 
@@ -63,9 +64,20 @@ class HistMsdData(MsdData):
                         "timesliced": for each time interval t, the MSD of each individual atom is averaged over all possible
                         time slices equivalent to t (ex.: if t=2, average 2-0, 3-1, 4-2, etc.)
 
+            discard_init_steps: Do not take the N first steps of the trajectory into account when computing MSD.
+                                Default: 0
+                                Note: only the default value can be used with "thermo" files.
+                                (since the average MSD on atoms is by default taken from the initial step)
+
             plot: activate plotting of MSD vs t
 
             plot_errors: plot MSD(T) +- standard deviation on all atoms at each timestep, if available
+
+            plot_verbose: print the numerical value of the diffuson coefficient on the plot.
+                          Default: True
+
+            plot_all_atoms: plots individual atom MSD in addition to the mean MSD and linear fit
+                            Default: False
 
             **kwargs: optional arguments that will be passes to the Plotter object (see plotter/plotter.py)
         '''
@@ -75,10 +87,14 @@ class HistMsdData(MsdData):
         logging.info('Will average MSD(T) on {} atoms'.format(self.atom_type))
 
         self.msd_type = msd_type
+
+        if not isinstance(discard_init_steps, int):
+            raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
+
         self.read_temperature
         self.get_atoms_for_diffusion()
         logging.info('Extracting trajectories...')
-        self.traj = self.read_positions
+        self.traj = self.read_positions[discard_init_steps:]
         self.nframes, self.natoms = np.shape(self.traj)[:2]
         # check if the positions are wrapped or unwrapped, with condition like dx larger than half the unit cell?
 #        for i, frame in enumerate(self.traj):
@@ -90,7 +106,6 @@ class HistMsdData(MsdData):
 #                    print('found non-Li diffusing atoms in frame {}!!!'.format(i))
         # From this test, positions seem to be unwrapped as at some points some atoms move outside the unit cell
     
-        # need : self.time, self.msd_atoms, self.msd, self.msd_std
         self.time = timestep*np.arange(self.nframes)
         logging.info('Computing MSD from atomic positions...') 
         self.compute_msd_from_positions()
@@ -104,4 +119,4 @@ class HistMsdData(MsdData):
 
         if plot:
             self.plot_errors = plot_errors
-            self.plot_diffusion_coefficient(defname='diffusion.png', **kwargs)
+            self.plot_diffusion_coefficient(defname='diffusion.png', verbose=plot_verbose, plot_all_atoms=plot_all_atoms, **kwargs)

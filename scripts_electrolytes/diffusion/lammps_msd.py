@@ -33,7 +33,7 @@ class LammpsMsdData(MsdData):
     
     def compute_diffusion_coefficient(self, thermo_fname=None, timestep=None, atom_type='all', atomic_numbers=None, 
                                       msd_type='bare', input_temperature=None, discard_init_steps=0, plot=False, 
-                                      plot_errors=False, **kwargs):
+                                      plot_errors=False, plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
             thermo_fname: path to the thermo.dat file is already extracted from lammps.log
@@ -55,16 +55,26 @@ class LammpsMsdData(MsdData):
 
             discard_init_steps: Do not take the N first steps of the trajectory into account when computing MSD.
                                 Default: 0
-                                Note: only the default value can currently be used with "thermo" files.
+                                Note: only the default value can be used with "thermo" files.
+                                (since the average MSD on atoms is by default taken from the initial step)
 
             plot: activate plotting of MSD vs t
 
             plot_errors: plot MSD(T) +- standard deviation on all atoms at each timestep, if available
 
+            plot_verbose: print the numerical value of the diffuson coefficient on the plot.
+                          Default: True
+
+            plot_all_atoms: plots individual atom MSD in addition to the mean MSD and linear fit
+                            Default: False
+
             **kwargs: optional arguments that will be passes to the Plotter object (see plotter/plotter.py)
         '''
 
         self.msd_type = msd_type
+
+        if not isinstance(discard_init_steps, int):
+            raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
 
         if self.filetype == 'thermo':
             if not thermo_fname:
@@ -107,7 +117,6 @@ class LammpsMsdData(MsdData):
             self.get_atoms_for_diffusion()
             self.nframes = len(self.traj)
             self.natoms = len(self.atom_indices)
-
             logging.info('Computing MSD from atomic positions...')
             self.compute_msd_from_positions()
             logging.info('... done!')
@@ -125,7 +134,7 @@ class LammpsMsdData(MsdData):
 
         if plot:
             self.plot_errors = plot_errors
-            self.plot_diffusion_coefficient(defname='diffusion.png', **kwargs)
+            self.plot_diffusion_coefficient(defname='diffusion.png', verbose=plot_verbose, plot_all_atoms=plot_all_atoms, **kwargs)
 
         self.write_data()
 

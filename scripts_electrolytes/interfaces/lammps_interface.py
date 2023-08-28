@@ -54,3 +54,20 @@ def read_traj_from_dump(fname, atomic_numbers):
         for a in range(len(frame.numbers)):
             frame.numbers[a] = atomic_numbers[frame.numbers[a]-1]
     return traj
+
+def read_neb_logfile(fname):
+
+    ''' Reads a log.lammps main log output file and extracts the converged results '''
+    f = open(fname, 'r')
+    lines = f.readlines()
+    data = lines[-1]
+
+    data = data.split()
+    forward_barrier = float(data[6])
+    backward_barrier  = float(data[7])
+    reaction_coordinate_length = float(data[8])
+    reaction_coordinate = np.array(data[9::2], dtype=float)
+    energy = np.array(data[10::2], dtype=float)
+    energy -= energy[0]  # Set the 0 of energy at the initial configuration
+
+    return forward_barrier, backward_barrier, reaction_coordinate_length, reaction_coordinate, energy

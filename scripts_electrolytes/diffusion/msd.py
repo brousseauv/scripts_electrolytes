@@ -64,21 +64,29 @@ class MsdData:
             return None
 
     
-    def plot_diffusion_coefficient(self, **kwargs):
+    def plot_diffusion_coefficient(self, verbose=True, plot_all_atoms=False, **kwargs):
         
         myplot = MsdPlotter(**kwargs) 
         myplot.set_line2d_params(**kwargs)
 
         y = self.slope[0]*self.time + self.slope[1]
-        myplot.ax.plot(self.time, self.msd, color=bright['blue'], linewidth=myplot.linewidth, linestyle='solid')
-        myplot.ax.plot(self.time, y, color=bright['red'], linewidth=myplot.linewidth, linestyle='dashed')
 
-        # if we have std on atoms at each time step, add it
-        # FIX ME: this is a little crude, as msd-msd_std can be negative
-        if self.msd_std is not None and self.plot_errors:
-            myplot.ax.fill_between(self.time, self.msd-self.msd_std, self.msd+self.msd_std, color='gray', zorder=-1, alpha=0.3)
+        if plot_all_atoms:
+            for a in range(self.natoms):
+                myplot.ax.plot(self.time, self.msd_atoms[:, a], linewidth=0.5*myplot.linewidth, linestyle='solid', alpha=0.6)
+            myplot.ax.plot(self.time, self.msd, color='black', linewidth=1.5*myplot.linewidth, linestyle='solid')
+            myplot.ax.plot(self.time, y, color=bright['red'], linewidth=1.5*myplot.linewidth, linestyle='dashed')
+        else:
+            myplot.ax.plot(self.time, self.msd, color=bright['blue'], linewidth=myplot.linewidth, linestyle='solid')
+            myplot.ax.plot(self.time, y, color=bright['red'], linewidth=myplot.linewidth, linestyle='dashed')
 
-        myplot.ax.text(0.10, 0.90, r'D={:.3e} cm$^2$/s'.format(self.diffusion), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
+            # FIX ME: this is a little crude, as msd-msd_std can be negative
+            # Plotting the MSD-std makes only sense if we do not plot individual trajectories :P
+            if self.msd_std is not None and self.plot_errors:
+                myplot.ax.fill_between(self.time, self.msd-self.msd_std, self.msd+self.msd_std, color='gray', zorder=-1, alpha=0.3)
+
+        if verbose:
+            myplot.ax.text(0.10, 0.90, r'D={:.3e} cm$^2$/s'.format(self.diffusion), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
         myplot.set_labels()
         try:
             myplot.add_title()
@@ -120,6 +128,11 @@ class MsdData:
                     'time', 'd', ('number_of_frames'))
             data.units = 'picosecond'
             data[:] = self.time
+
+            data = dts.createVariable(
+                    'runtime', 'd', ('one'))
+            data.units = 'picosecond'
+            data[:] = self.time[-1]
 
             data = dts.createVariable(
                     'timestep', 'd', ('one'))
