@@ -8,16 +8,12 @@ from ..plotter.colorpalettes import bright
 class NebData:
 
     def __init__(self, fname, rootname):
-        try:
-            os.path.exists(fname)
-        except:
-            raise NameError('File {} does not exists. Please provide correct path to the "log.lammps" output file containing NEB results.'.format(fname))
 
         self.fname = fname
         self.rootname = rootname
 
 
-    def plot_neb_energy(self, verbose=True, **kwargs):
+    def plot_neb_energy(self, plot_verbose=True, **kwargs):
 
         myplot = NebPathPlotter(**kwargs)
         myplot.set_line2d_params(defname='neb.png', **kwargs)
@@ -28,9 +24,9 @@ class NebData:
             col = bright['blue']
 
         myplot.ax.plot(self.reaction_coordinate, self.potential_energy, color=col, marker=myplot.marker,
-                       linestyle='solid', linewidth=myplot.linewidth)
+                       linestyle=myplot.linestyle, linewidth=myplot.linewidth)
 
-        if verbose:
+        if plot_verbose:
             myplot.ax.text(0.05, 0.90, r'E$_A$={:.3f} eV'.format(self.forward_barrier), fontsize=myplot.labelsize+1, transform=myplot.ax.transAxes)
         try:
             myplot.add_title()
@@ -40,3 +36,8 @@ class NebData:
         myplot.set_labels()
         myplot.save_figure()
         myplot.show_figure()
+
+
+    def print_barriers(self):
+
+        print('Forward (backward) energy barrier: {:.4f} ({:.4f}) eV'.format(self.forward_barrier, self.backward_barrier))

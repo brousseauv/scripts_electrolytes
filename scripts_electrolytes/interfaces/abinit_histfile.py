@@ -2,7 +2,7 @@ from abipy.dynamics.hist import HistFile
 from abipy.core.structure import Structure
 from ..utils.constants import ha_to_ev, bohr_to_ang
 from ..database.db_creator import MtpDbCreator, AseDbCreator
-from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
+#from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang
 
 ''' Small utilities to work with Abinit output files'''
 
