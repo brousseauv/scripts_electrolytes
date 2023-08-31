@@ -38,10 +38,12 @@ def read_thermo(data, key):
 def read_msd_from_thermo(data):
 
     time = read_thermo(data, 'Time')
+    step = read_thermo(data, 'Step')[:2]
     msd = read_thermo(data, 'c_msd[4]')
     temp = read_thermo(data, 'Temp')[0]
+    timestep = (time[1]-time[0])/(step[1]-step[0])
 
-    return time, msd, temp
+    return time, timestep, msd, temp
 
 
 def read_traj_from_dump(fname, atomic_numbers):
@@ -55,7 +57,7 @@ def read_traj_from_dump(fname, atomic_numbers):
             frame.numbers[a] = atomic_numbers[frame.numbers[a]-1]
     return traj
 
-def read_neb_logfile(fname):
+def read_neb_logfile(fname, rescale_energy):
 
     ''' Reads a log.lammps main log output file and extracts the converged results '''
     f = open(fname, 'r')
@@ -68,6 +70,7 @@ def read_neb_logfile(fname):
     reaction_coordinate_length = float(data[8])
     reaction_coordinate = np.array(data[9::2], dtype=float)
     energy = np.array(data[10::2], dtype=float)
-    energy -= energy[0]  # Set the 0 of energy at the initial configuration
+    if rescale_energy:
+        energy -= energy[0]  # Set the 0 of energy at the initial configuration
 
     return forward_barrier, backward_barrier, reaction_coordinate_length, reaction_coordinate, energy

@@ -4,6 +4,7 @@ from .msd import MsdData
 from ase.md.analysis import DiffusionCoefficient
 import logging
 import os
+import warnings
 
 class LammpsMsdData(MsdData):
 
@@ -82,19 +83,41 @@ class LammpsMsdData(MsdData):
             self.data_source = 'LAMMPS thermo data'
             data = create_thermo_dataframe(thermo_fname)
             logging.info('Extracting MSD from thermo file...')
-            self.time, self.msd, self.temperature = read_msd_from_thermo(data)
+            self.time, self.timestep, self.msd, self.temperature = read_msd_from_thermo(data)
             self.msd_atoms = None
             self.atom_type = 'See lammps input file'
             self.nframes = len(self.msd)
             self.natoms = None
             self.atom_type = 'See lammps input file'
 
+            if plot_all_atoms:
+                warnings.warn('The plot_all_atoms is not available when MSD is retreived from thermo data. Setting to  False')
+                plot_all_atoms = False
+
             if discard_init_steps != 0:
-                raise ValueError('With "thermo" files, discard_init_steps should be 0 (default value)')
+                thermo_step = (self.time[1]-self.time[0])/self.timestep
+                discard_init_steps_new = int(np.floor(discard_init_steps/thermo_step))
+                print('Discarding the {} first MD steps from the MSD calculation, which correspond to the {} first entries in the thermo data.'.format(
+                       discard_init_steps, discard_init_steps_new))
+                self.msd = self.msd[discard_init_steps_new:]
+                self.time = self.time[discard_init_steps_new:]
+
+                #  I shifted the time so the first used frame is t=0. That does not affect the slope, which is what I am looking for anyway
+                self.time -= self.time[0]
+                self.nframes = len(self.msd)
+
+            # FIX ME: I don't think this is necessary. It will just shift the curve upwaards (i.e. start at non zero MSD
+#            if discard_init_steps != 0:
+#                raise ValueError('With "thermo" files, discard_init_steps should be 0 (default value)')
 
         elif self.filetype == 'dump':
             if not timestep:
                 raise ValueError('Missing value for timestep (in ps)')
+            else:
+                if not isinstance(timestep, float):
+                    raise ValueError('Timestep shoulf be a float, but I got {}'.format(type(timestep)))
+                else:
+                    self.timestep = timestep
             if not atomic_numbers:
                 raise ValueError('Must define a list for atomic_numbers')
             if self.msd_type not in ['bare', 'timesliced']:
@@ -155,7 +178,6 @@ class LammpsMsdData(MsdData):
 
     def compute_msd_from_positions(self):
 
-        # Could add a cutoff for thermalization here, discarding the first N% steps and defining the t=0 at a later point in the MD run
         displacements = np.zeros((self.nframes, self.natoms, 3))
         for i, frame in enumerate(self.traj):
             displacements[i, :, :] = self.traj[i].get_positions()[self.atom_indices] - self.traj[0].get_positions()[self.atom_indices]

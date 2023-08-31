@@ -18,6 +18,8 @@ class MsdData:
         except OSError:
             pass
 
+        self.my_atoms = []
+
 
     def compute_atoms_msd(self, displacements):
         '''
@@ -28,7 +30,6 @@ class MsdData:
                 bare: no timeslice averaging is done.
         '''
         msd_atoms = np.zeros((self.nframes, self.natoms))
-
         if self.msd_type == 'timesliced':
             for t in range(self.nframes):
                 if t%1000 == 0:
@@ -137,7 +138,7 @@ class MsdData:
             data = dts.createVariable(
                     'timestep', 'd', ('one'))
             data.units = 'picosecond'
-            data[:] = self.time[1] - self.time[0]
+            data[:] = self.timestep
 
             data = dts.createVariable(
                     'mean_squared_displacement', 'd',
@@ -167,7 +168,7 @@ class MsdData:
             f.write('Data source: {}\n'.format(self.data_source))
             f.write('Temperature: {:.0f}K\n'.format(self.temperature))
             f.write('Runtime: {:.5f} ps\n'.format(self.time[-1]))
-            f.write('Timestep: {:.5f} ps\n'.format(self.time[1]-self.time[0]))
+            f.write('Timestep: {:.5f} ps\n'.format(self.timestep))
             f.write('Diffusing atoms type: {}\n'.format(self.atom_type))
             f.write('MSD type: {}\n'.format(self.msd_type))
             f.write('Diffusion coefficient: {:.5e} cm^2/s\n'.format(self.diffusion))

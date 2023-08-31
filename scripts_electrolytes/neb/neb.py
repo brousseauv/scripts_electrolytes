@@ -41,3 +41,10 @@ class NebData:
     def print_barriers(self):
 
         print('Forward (backward) energy barrier: {:.4f} ({:.4f}) eV'.format(self.forward_barrier, self.backward_barrier))
+
+
+class NebTraj:
+
+    def __init__(self, fname, rootname):
+
+        x=2
