@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from ase.io import read
+from ase.io import read as ase_read
 from ase.md.analysis import DiffusionCoefficient
 
 ''' Some functions to treat the outputs from a LAMMPS run'''
@@ -46,9 +46,9 @@ def read_msd_from_thermo(data):
     return time, timestep, msd, temp
 
 
-def read_traj_from_dump(fname, atomic_numbers):
+def read_traj_from_dump(fname, atomic_numbers, which=':'):
 
-    traj= read(fname, format='lammps-dump-text', index=':')
+    traj= ase_read(fname, format='lammps-dump-text', index=which)
 
     # as the lammps dump outputs only atom id (1,2,3...) and not type, ASE sees H, He, Li...
     # So, convert atom id to atomic masses
@@ -56,6 +56,17 @@ def read_traj_from_dump(fname, atomic_numbers):
         for a in range(len(frame.numbers)):
             frame.numbers[a] = atomic_numbers[frame.numbers[a]-1]
     return traj
+
+
+def read_config_from_dump(fname, atomic_numbers, which=-1):
+
+    atoms = ase_read(fname, format='lammps-dump-text', index=which)
+
+    # as the lammps dump outputs only atom id (1,2,3...) and not type, ASE sees H, He, Li...
+    # So, convert atom id to atomic masses
+    for a in range(len(atoms.numbers)):
+        atoms.numbers[a] = atomic_numbers[atoms.numbers[a]-1]
+    return atoms
 
 def read_neb_logfile(fname, rescale_energy):
 

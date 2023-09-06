@@ -1,0 +1,11 @@
+__pycache__/
+*.png
+*.jpg
+*.swp
+*.egg_info/
+test.py
+test.sh
+data/
+*ipynb
+*.db
+*.cfg
