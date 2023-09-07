@@ -48,6 +48,9 @@ class Plotter:
         self.set_marker(kwargs.get('marker', 'o'))
         self.set_linecolor(kwargs.get('linecolor', False))
         self.set_linestyle(kwargs.get('linestyle', 'solid'))
+        self.set_xlimits(kwargs.get('xlim', None))
+        self.set_ylimits(kwargs.get('ylim', None))
+
         try:
             self.set_title(kwargs.get('title'))
         except:
@@ -82,6 +85,12 @@ class Plotter:
 
     def add_title(self):
         self.ax.set_title(self.title, fontsize=self.labelsize)
+
+    def set_xlimits(self, lim):
+        self.xlim = lim
+
+    def set_ylimits(self, lim):
+        self.ylim = lim
 
     def save_figure(self):
 
