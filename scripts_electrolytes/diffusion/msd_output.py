@@ -2,7 +2,8 @@ import numpy as np
 import netCDF4 as nc
 import os
 from pymatgen.io.abinit.netcdf import NetcdfReader
-from ..plotter.msd_plotter import MsdPlotter
+from ..plotter.msd_plotter import MsdPlotter, DCPlotter
+from ..plotter.colorpalettes import bright
 from ..utils.functions import sort_consecutive_groups
 
 class MsdOutput:
@@ -76,13 +77,16 @@ class MsdOutput:
 #                        and np.abs(mymsd[idx]-mymsd[idx-100])>threshold/2 
                 # Keep only the first of each block of consecutive timesteps
                 # TO BE TESTED on multijump trajectories!!!!!
-                start = sort_consecutive_groups(where)
+                start, end = sort_consecutive_groups(where)
 
-                print('\nFound jumps in atom {}, at timestep(s) {}'.format(a, start))
+                #print('\nFound jumps in atom {}, at timestep(s) {}'.format(a, start))
+                print('\nFound jumps in atom {}, between timesteps {}-{}'.format(a, start, end))
+
                 jumping_atoms_list.append(a)
                 if plot:
                     self.plot_msd_atom(a, threshold, start, **kwargs)
         print('Found jumps in atoms:{}'.format(jumping_atoms_list))
+        print('If jumps were found, remember that the timesteps are shifted (smaller) by discard_init_steps vs the dump file.')
 
 
     def plot_msd_atom(self, index, href, vref, **kwargs):
@@ -106,3 +110,75 @@ class MsdOutput:
 
         myplot.save_figure()
         myplot.show_figure()
+
+
+    def diffusion_coefficient_from_slices(self, plot=True, **kwargs):
+
+        ''' Computes the diffusion coefficient as an average on non-overlapping slices of size delta t \in [1, time[-1]] '''
+
+        self.read_data(mode='msd')
+        nsteps = len(self.time)
+
+        self.deltat = []
+        self.diffusion_from_slices = []
+        self.diffusion_std = []
+
+        print('nsteps:',nsteps, self.time[-1])
+        cut = 0
+        for nslice in np.arange(1, nsteps+1):
+            newcut = int(np.ceil((nsteps-1)/nslice))
+            if newcut != cut:
+                cut = newcut
+                self.deltat.append(cut*self.timestep)
+
+                print('for nslice {}, ncut={}'.format(nslice, cut))
+                n = 0
+                diff = []
+                while n*cut+1<nsteps:
+                    # For now they have overlapping start/endpoints
+                    coeff = self.compute_diffusion_coefficient(self.time[n*cut:(n+1)*cut+1], self.msd[n*cut:(n+1)*cut+1])
+                    diff.append(coeff)
+                    n += 1
+
+                self.diffusion_from_slices.append(np.mean(diff))
+                self.diffusion_std.append(np.std(diff))
+
+        if plot:
+            self.plot_diffusion_from_slices(**kwargs)
+
+
+    def compute_diffusion_coefficient(self, x, y):
+
+        # Assume units of angstrom^2/ps
+        slope = np.polyfit(x, y, 1)
+        # Assume 3D diffusion, for which the slope of MSD vs t is 6D
+        coefficient = 1E-4*slope[0]/6
+
+        return coefficient
+
+
+    def plot_diffusion_from_slices(self, **kwargs):
+
+        myplot = DCPlotter(**kwargs) 
+        myplot.set_line2d_params(defname='diffusion_deltat.png', **kwargs)
+
+        myplot.ax.errorbar(self.deltat, self.diffusion_from_slices, yerr=self.diffusion_std, color=bright['blue'])
+        myplot.ax.plot(self.deltat, self.diffusion_from_slices, color='black', linewidth=1.5)
+
+        myplot.ax.semilogy()
+#        if verbose:
+#            myplot.ax.text(0.10, 0.90, r'D={:.3e} cm$^2$/s'.format(self.diffusion), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
+        myplot.set_labels()
+        mean = np.mean(self.diffusion_from_slices)
+        myplot.ylim=(mean*1E-2, mean*3)
+        myplot.set_limits()
+
+        try:
+            myplot.add_title()
+        except:
+            pass
+
+        myplot.save_figure()
+        myplot.show_figure()
+
+

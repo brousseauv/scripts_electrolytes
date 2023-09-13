@@ -11,11 +11,12 @@ def sort_consecutive_groups(arr):
     my_order = lambda x: x  # returns the value of a given element
     grouped = groupby(enumerate(list(arr)), key=lambda x: x[0] - my_order(x[1]))
     start = []
+    end = []
 
     for key, group in grouped:
         g = np.asarray(list(group))
         # Prevent groups of single elements to be selected
         if np.shape(g)[0] > 1:
             start.append(g[0,1])
-
-    return start
+            end.append(g[-1,1])
+    return start, end
