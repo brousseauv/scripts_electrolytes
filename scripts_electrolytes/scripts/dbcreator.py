@@ -29,6 +29,9 @@ from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator
         overwrite: Boolean; indicates if the database should be overwritten in case the filename already exists.
                    Default = False
 
+        remove_ekin: Boolean; should the ionic kinetic energy be removed from the total energy.
+                     Default: False
+
         ex: the following command creates a database called mydatabase in .cfg format from a calc_HIST.nc file in subdirectory aimd/,
             selecting one every 50 configurations:
 
@@ -53,6 +56,7 @@ def create_parser():
     parser.add_argument("--initstep", type=int, default=0, help="Index of the first configuration selected")
     parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
     parser.add_argument("--append", type=bool, default=False, help="Should data be appended to existing database or not")
+    parser.add_argument("--removeekin", type=bool, default=False, help="Should the ionic kineric energy be removed from total energy")
 
     return parser
 
@@ -68,9 +72,9 @@ def check_parser(args, parser):
 def main(args):
 
     if args.format == 'mtp':
-        db = MtpDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append)
+        db = MtpDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append, remove_ekin=args.removeekin)
     elif args.format == 'ase':
-        db = AseDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append)
+        db = AseDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append, remove_ekin=args.removeekin)
 
     if args.source == 'hist':
         db.db_from_hist(args.fname)

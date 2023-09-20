@@ -37,6 +37,9 @@ import glob
         overwrite: Boolean; indicates if the database should be overwritten in case the filename already exists.
                    Default = False
 
+        remove_ekin: Boolean; should the ionic kinetic energy be removed from the total energy.
+                     Default: False
+
         ex: the following command creates a database called mydatabase in .cfg format from a calc_HIST.nc file in subdirectory aimd/,
             selecting one every 50 configurations:
 
@@ -48,13 +51,14 @@ import glob
 '''
 class DbCreator:
 
-    def __init__(self, dbname, mdskip, initstep, overwrite, append):
+    def __init__(self, dbname, mdskip, initstep, overwrite, append, remove_ekin):
 
         self.dbname = dbname
         self.mdskip = mdskip
         self.initstep = initstep
         self.overwrite = overwrite
         self.append = append
+        self.remove_ekin = remove_ekin
 
 
     def db_from_hist(self, fname):
@@ -62,7 +66,11 @@ class DbCreator:
         hist = HistFile(fname)
 
         structures = hist.structures
-        energies = hist.etotals
+
+        if self.remove_ekin:
+            energies = hist.etotals - hist.reader.read_value('ekin')*ha_to_ev
+        else:
+            energies = hist.etotals
         forces = hist.reader.read_value('fcart')
         stresses = hist.reader.read_value('strten')
 
@@ -88,6 +96,7 @@ class DbCreator:
             gsr = abiopen(fname)
             structure = gsr.structure
             atoms = self.convert_structure(structure)
+            # GSR files are T=0K, no ionic ekin
             energy = gsr.energy
             current_forces = gsr.cart_forces  # already in eV/ang
             current_stress = gsr.reader.read_value('cartesian_stress_tensor') * ha_to_ev/(bohr_to_ang**3) # convert from ha_bohr3 to eV/ang^3 
@@ -96,9 +105,9 @@ class DbCreator:
 
 class MtpDbCreator(DbCreator):
 
-    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False):
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False, remove_ekin=False):
 
-        super(MtpDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append)
+        super(MtpDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append, remove_ekin)
         self.check_db_exists()
 
 
@@ -135,9 +144,9 @@ class MtpDbCreator(DbCreator):
 
 class AseDbCreator(DbCreator):
 
-    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False):
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False, remove_ekin=False):
 
-        super(AseDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append)
+        super(AseDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append, remove_ekin)
         self.check_db_exists()
 
 
