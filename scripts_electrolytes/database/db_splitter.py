@@ -23,25 +23,32 @@ from ase.db import connect
         appendtxt: String containing the names that should be appended to the splitted databases.
                    Should be a single string, with the two entries separated by a space.
                    Default: "1 2"
+
+        seed: Value of the random seed, in case one wants to reproduce a given split/shuffle.
+              Default: None
         
     For help about these options on the command line, type 
         python dbsplitter.py --help
 '''
 class DbSplitter:
 
-    def __init__(self, dbname, nsplit, split_fraction, appendtxt):
+    def __init__(self, dbname, nsplit, split_fraction, appendtxt, seed):
 
         self.dbname = dbname
         self.nsplit = int(nsplit) if nsplit is not None else None
         self.split_fraction = float(split_fraction) if split_fraction is not None else None
         self.appendtxt = appendtxt
+        if seed is not None:
+            self.seed = int(seed)
+        else:
+            self.seed = seed
 
 
 class AseDbSplitter(DbSplitter):
 
-    def __init__(self, dbname, nsplit, split_fraction, appendtxt):
+    def __init__(self, dbname, nsplit, split_fraction, appendtxt, seed):
 
-        super(AseDbSplitter, self).__init__(dbname, nsplit, split_fraction, appendtxt)
+        super(AseDbSplitter, self).__init__(dbname, nsplit, split_fraction, appendtxt, seed)
 
 
     def split_data(self):
@@ -57,6 +64,9 @@ class AseDbSplitter(DbSplitter):
             else:
                 ndata = self.split()
             idx = np.arange(1, db.count() + 1)
+
+            if self.seed:
+                np.random.seed(self.seed)
             np.random.shuffle(idx)
             idx1, idx2 = idx[:ndata], idx[ndata:]
 
@@ -70,9 +80,9 @@ class AseDbSplitter(DbSplitter):
 
 class MtpDbSplitter(DbSplitter):
 
-    def __init__(self, dbname, nsplit, split_fraction, appendtxt):
+    def __init__(self, dbname, nsplit, split_fraction, appendtxt, seed):
 
-        super(MtpDbSplitter, self).__init__(dbname, nsplit, split_fraction, appendtxt)
+        super(MtpDbSplitter, self).__init__(dbname, nsplit, split_fraction, appendtxt, seed)
 
 
     def split_data(self):
@@ -98,6 +108,9 @@ class MtpDbSplitter(DbSplitter):
             ndata = self.nsplit
 
         idx = np.arange(0, len(configs))
+
+        if self.seed:
+            np.random.seed(self.seed)
         np.random.shuffle(idx)
         idx1, idx2 = idx[:ndata], idx[ndata:]
 

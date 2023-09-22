@@ -36,6 +36,7 @@ def create_parser():
     data.add_argument("--fsplit", type=float, help="fraction of entries in the 1st extracted database, between 0 and 1",
                       default=None)
     parser.add_argument("--appendtxt", default="1 2", help="Text to be appended to the splitted databases. Single string separated by a space")
+    parser.add_argument("--seed", default=None, help="Random seed value")
     return parser
 
 def check_parser(args, parser):
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     check_parser(args, parser)
 
     if args.dbname.endswith(".db"):
-        dbspl = AseDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt)    
+        dbspl = AseDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt, args.seed)    
     elif args.dbname.endswith(".cfg"):
-        dbspl = MtpDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt)    
+        dbspl = MtpDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt, args.seed)    
     dbspl.split_data() 
