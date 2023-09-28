@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 from ase.io import read as ase_read
+from ase.io import write as ase_write
 from ase.md.analysis import DiffusionCoefficient
+import os
 
 ''' Some functions to treat the outputs from a LAMMPS run'''
 
@@ -85,3 +87,25 @@ def read_neb_logfile(fname, rescale_energy):
         energy -= energy[0]  # Set the 0 of energy at the initial configuration
 
     return forward_barrier, backward_barrier, reaction_coordinate_length, reaction_coordinate, energy
+
+
+def slice_trajectory_from_dump(fname, out_rootname='traj', atomic_numbers=None, nskip=10):
+
+    ''' Reads every nskip configuration of a dump trajectory file and writes it in .xyz format '''
+    if not atomic_numbers:
+        raise Exception('Must provide a list of atomic numbers')
+    if not isinstance(nskip, int):
+        raise TypeError('nskip should be an integer, but I got a {}'.format(type(nskip)))
+    if not os.path.exists(fname):
+        raise ValueError('File {} does not exist'.format(fname))
+
+    which = '::{}'.format(nskip)
+
+    trajectory = read_traj_from_dump(fname, atomic_numbers, which=which)
+    print(len(trajectory))
+
+    out_fname = '{}.xyz'.format(out_rootname)
+    ase_write(filename=out_fname, images=trajectory, append=True)
+
+
+

@@ -68,17 +68,19 @@ class DbCreator:
         structures = hist.structures
 
         if self.remove_ekin:
+            print('Removing ionic kinetic energy from total energy')
             energies = hist.etotals - hist.reader.read_value('ekin')*ha_to_ev
         else:
             energies = hist.etotals
+        print(type(energies[0]), type(energies[-1]))
         forces = hist.reader.read_value('fcart')
         stresses = hist.reader.read_value('strten')
 
         db = self.create_database()
         dblst = list(range(self.initstep, hist.num_steps, self.mdskip))
-
         for i in dblst:
-
+            if i<50:
+                print(energies[i], energies[i]/ha_to_ev)
             atoms = self.convert_structure(structures[i])
             energy = energies[i]  # in eV
             current_forces = forces[i, :, :] * ha_to_ev/bohr_to_ang  # in eV/ang

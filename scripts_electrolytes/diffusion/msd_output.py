@@ -5,6 +5,7 @@ from pymatgen.io.abinit.netcdf import NetcdfReader
 from ..plotter.msd_plotter import MsdPlotter, DCPlotter
 from ..plotter.colorpalettes import bright
 from ..utils.functions import sort_consecutive_groups
+from matplotlib.pyplot import subplots
 
 class MsdOutput:
 
@@ -131,7 +132,6 @@ class MsdOutput:
                 cut = newcut
                 self.deltat.append(cut*self.timestep)
 
-                print('for nslice {}, ncut={}'.format(nslice, cut))
                 n = 0
                 diff = []
                 while n*cut+1<nsteps:
@@ -142,6 +142,10 @@ class MsdOutput:
 
                 self.diffusion_from_slices.append(np.mean(diff))
                 self.diffusion_std.append(np.std(diff))
+
+                print('for nslice {}, ncut={}, D={:.3e}cm^2/s, nintervals={}'.format(nslice, cut, np.mean(diff), len(diff)))
+                if cut<10: 
+                    print(np.asarray(diff)[::500])
 
         if plot:
             self.plot_diffusion_from_slices(**kwargs)
@@ -159,24 +163,31 @@ class MsdOutput:
 
     def plot_diffusion_from_slices(self, **kwargs):
 
-        myplot = DCPlotter(**kwargs) 
-        myplot.set_line2d_params(defname='diffusion_deltat.png', **kwargs)
+        fig, ax = subplots(1, 2, figsize=(12, 6))
+        for j in range(2):
+            myplot = DCPlotter(ax=ax[j], **kwargs) 
+            myplot.set_line2d_params(defname='diffusion_deltat.png', **kwargs)
 
-        myplot.ax.errorbar(self.deltat, self.diffusion_from_slices, yerr=self.diffusion_std, color=bright['blue'])
-        myplot.ax.plot(self.deltat, self.diffusion_from_slices, color='black', linewidth=1.5)
+            myplot.ax.errorbar(self.deltat, self.diffusion_from_slices, yerr=self.diffusion_std, color=bright['blue'], alpha=0.4, zorder=1)
+            myplot.ax.plot(self.deltat, self.diffusion_from_slices, color='black', linewidth=3, zorder=2)
 
-        myplot.ax.semilogy()
-#        if verbose:
-#            myplot.ax.text(0.10, 0.90, r'D={:.3e} cm$^2$/s'.format(self.diffusion), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
-        myplot.set_labels()
-        mean = np.mean(self.diffusion_from_slices)
-        myplot.ylim=(mean*1E-2, mean*3)
-        myplot.set_limits()
+            if j == 0:
+                myplot.ax.set_yscale('log')
+                myplot.ax.set_xscale('log')
+    #        if verbose:
+    #            myplot.ax.text(0.10, 0.90, r'D={:.3e} cm$^2$/s'.format(self.diffusion), fontsize=myplot.labelsize+2, transform=myplot.ax.transAxes)
+            myplot.set_labels()
+            myplot.ax.axhline(self.diffusion_from_slices[0], color='r', linestyle='dashed')
 
-        try:
-            myplot.add_title()
-        except:
-            pass
+            mean = np.mean(self.diffusion_from_slices)
+            myplot.ylim=(mean*1E-1, mean*5)
+            myplot.xlim=(self.deltat[-1][0], self.deltat[0][0])
+            myplot.set_limits()
+
+            try:
+                myplot.add_title()
+            except:
+                pass
 
         myplot.save_figure()
         myplot.show_figure()

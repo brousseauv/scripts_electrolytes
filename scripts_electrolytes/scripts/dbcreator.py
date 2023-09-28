@@ -29,7 +29,7 @@ from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator
         overwrite: Boolean; indicates if the database should be overwritten in case the filename already exists.
                    Default = False
 
-        remove_ekin: Boolean; should the ionic kinetic energy be removed from the total energy.
+        removeekin: Boolean; should the ionic kinetic energy be removed from the total energy.
                      Default: False
 
         ex: the following command creates a database called mydatabase in .cfg format from a calc_HIST.nc file in subdirectory aimd/,
