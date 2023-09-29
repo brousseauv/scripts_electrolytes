@@ -1,5 +1,5 @@
 import argparse
-from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator
+from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator, XyzDbCreator
 
 
 '''
@@ -7,6 +7,8 @@ from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator
     or from a directory containing multiple GSR.nc files,
     and converts them either in ASE .db format (to be used with SchNetPack)
     or in .cfg format (to be used with MTP/mlip-2 code).
+    Can also output in extended XYZ format for visualization with Ovito. 
+
 
     Simply call python dbcreator.py --<OPTION1> <value1> -- <OPTION2> <value2> etc.
 
@@ -18,7 +20,8 @@ from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator
 
         source (required): Data source file type.  Can be 'hist' for AIMD runs or 'gsr' for independent configuration.
 
-        format(required): Output format for the database.  Can be either 'mtp' or 'ase'.
+        format(required): Output format for the database.  Can be either 'mtp', 'ase' or 'xyz'.
+                          The 'xyz' format is mostly for visualization purposes with Ovito.
 
         mdskip: Integer; elect each 'mdskip' configuration in the AIMD trajectory (to prevent having too may correlated configurations).  
                 Default = 10
@@ -51,7 +54,7 @@ def create_parser():
 
     parser.add_argument("--source", choices=['hist', 'gsr'], help="""Data source file type ('hist' for AIMD runs, 'gsr'
             for independent configuration)""", required=True)
-    parser.add_argument("--format", choices=['ase', 'mtp'], help="Output format for the database", required=True)
+    parser.add_argument("--format", choices=['ase', 'mtp', 'xyz'], help="Output format for the database", required=True)
     parser.add_argument("--mdskip", type=int, default=10, help="Database will include every 'mdskip' configuration")
     parser.add_argument("--initstep", type=int, default=0, help="Index of the first configuration selected")
     parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
@@ -75,6 +78,8 @@ def main(args):
         db = MtpDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append, remove_ekin=args.removeekin)
     elif args.format == 'ase':
         db = AseDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append, remove_ekin=args.removeekin)
+    elif args.format == 'xyz':
+        db = XyzDbCreator(dbname=args.dbname, mdskip=args.mdskip, initstep=args.initstep, overwrite=args.overwrite, append=args.append, remove_ekin=args.removeekin)
 
     if args.source == 'hist':
         db.db_from_hist(args.fname)

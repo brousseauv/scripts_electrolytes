@@ -6,6 +6,7 @@ from abipy.abilab import abiopen
 from ase.db import connect
 from scripts_electrolytes.interfaces.ase_interface import abistruct_to_ase
 from scripts_electrolytes.interfaces.mtp_interface import abistruct_to_cfg
+from scripts_electrolytes.interfaces.lammps_interface import abistruct_to_xyz
 from scripts_electrolytes.utils.constants import ha_to_ev, bohr_to_ang, gpa_to_evang3
 import glob
 
@@ -14,6 +15,7 @@ import glob
     or from a directory containing multiple GSR.nc files,
     and converts them either in ASE .db format (to be used with SchNetPack)
     or in .cfg format (to be used with MTP/mlip-2 code).
+    Can also output in extended XYZ format for visualization with Ovito. 
 
     Simply call python dbcreator.py --<OPTION1> <value1> -- <OPTION2> <value2> etc.
     or load one of the classes, providing the required arguments
@@ -26,7 +28,8 @@ import glob
 
         source (required): Data source file type.  Can be 'hist' for AIMD runs or 'gsr' for independent configuration.
 
-        format(required): Output format for the database.  Can be either 'mtp' or 'ase'.
+        format(required): Output format for the database.  Can be either 'mtp', 'ase' or 'xyz'.
+                          The 'xyz' format is mostly for visualization purposes with Ovito.
 
         mdskip: Integer; elect each 'mdskip' configuration in the AIMD trajectory (to prevent having too may correlated configurations).  
                 Default = 10
@@ -72,15 +75,12 @@ class DbCreator:
             energies = hist.etotals - hist.reader.read_value('ekin')*ha_to_ev
         else:
             energies = hist.etotals
-        print(type(energies[0]), type(energies[-1]))
         forces = hist.reader.read_value('fcart')
         stresses = hist.reader.read_value('strten')
 
         db = self.create_database()
         dblst = list(range(self.initstep, hist.num_steps, self.mdskip))
         for i in dblst:
-            if i<50:
-                print(energies[i], energies[i]/ha_to_ev)
             atoms = self.convert_structure(structures[i])
             energy = energies[i]  # in eV
             current_forces = forces[i, :, :] * ha_to_ev/bohr_to_ang  # in eV/ang
@@ -180,6 +180,43 @@ class AseDbCreator(DbCreator):
         db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
 
 
+
+class XyzDbCreator(DbCreator):
+
+    def __init__(self, dbname=None, mdskip=10, initstep=0, overwrite=False, append=False, remove_ekin=False):
+
+        super(XyzDbCreator, self).__init__(dbname, mdskip, initstep, overwrite, append, remove_ekin)
+        self.check_db_exists()
+
+
+    def check_db_exists(self):
+
+        if not self.dbname.endswith('.xyz'):
+            self.dbname = '{}.xyz'.format(self.dbname)
+
+        if os.path.exists(os.path.join(os.getcwd(), self.dbname)):
+            if self.overwrite:
+                os.remove(self.dbname)
+            elif self.append:
+                return
+            else:
+                raise FileExistsError("""{} file already exists. Either choose another name or use --overwrite True or --append True keywords.""".format(
+                                       os.path.join(os.getcwd(), self.dbname)))
+
+
+    def create_database(self):
+        if self.append:
+            return open(self.dbname, 'a')
+        else:
+            return open(self.dbname, 'w')
+
+
+    def convert_structure(self, struct):
+        return struct
+
+
+    def add_to_database(self, db, atoms, energy, forces, stresses):
+        abistruct_to_xyz(db, atoms, energy=energy, forces=forces, stresses=stresses)
 
 ####################################
 #def create_parser():

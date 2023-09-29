@@ -102,10 +102,59 @@ def slice_trajectory_from_dump(fname, out_rootname='traj', atomic_numbers=None, 
     which = '::{}'.format(nskip)
 
     trajectory = read_traj_from_dump(fname, atomic_numbers, which=which)
-    print(len(trajectory))
 
     out_fname = '{}.xyz'.format(out_rootname)
     ase_write(filename=out_fname, images=trajectory, append=True)
 
 
+def abistruct_to_xyz(db, struct, energy=None, forces=None, stresses=None):
 
+    '''add configuration in extended XYZ format'''
+    db.write("{}\n".format(struct.num_sites))
+    
+    message = set_xyz_message(struct.lattice.matrix, energy, forces, stresses)
+    db.write("{}\n".format(message))
+
+    if forces is not None:
+        for idx, site in enumerate(struct):
+            db.write("{0} {1[0]} {1[1]} {1[2]} {2[0]} {2[1]} {2[2]}\n".format(
+                '{:2s}'.format(site.specie),
+                     ['{:16.8f}'.format(x) for x in site.coords],
+                     ['{:16.8f}'.format(f) for f in forces[idx, :]]))
+    else:
+        for idx, site in enumerate(struct):
+            db.write("{0} {1[0]} {1[1]} {1[2]}\n".format(
+                '{:2s}'.format(site.specie),
+                     ['{:16.8f}'.format(x) for x in site.coords]))
+
+
+
+def set_xyz_message(latt, energy, forces, stresses):
+
+    lattice = 'Lattice="'
+    for i in range(3):
+        lattice = ' '.join([lattice, '{0[0]} {0[1]} {0[2]}"'.format(['{:.8f}'.format(a) for a in latt[i, :]])])
+
+    if forces is not None:
+        properties = 'Properties=species:S:1:pos:R:3:forces:R:3'
+    else:
+        properties = 'Properties=species:S:1:pos:R:3'
+
+    if energy is not None:
+        ene = 'energy={:.8f}'.format(energy)
+    if stresses is not None:
+        mystress = "stresses={0[0]} {0[1]} {0[2]} {0[3]} {0[4]} {0[5]}".format(['{:.8f}'.format(strs) for strs in stresses])
+
+    if energy is not None and stresses is not None:
+        data = ' '.join([ene, mystress])
+    elif energy is not None:
+        data = ene
+    elif stresses is not None:
+        data = mystress
+
+    if energy is not None or stresses is not None:
+        message = ' '.join([lattice, properties, data])
+    else:
+        message = ' '.join([lattice, properties])
+
+    return message
