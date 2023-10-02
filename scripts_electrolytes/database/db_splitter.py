@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from ase.db import connect
+from ..interfaces.mtp_interface import split_cfg_configs
 
 '''
     These classes split a given database in ASE .db or MTP .cfg format in two distinct databases.
@@ -87,20 +88,11 @@ class MtpDbSplitter(DbSplitter):
 
     def split_data(self):
 
-        token = 'BEGIN_CFG'
-        configs = []
-        current_config = []
-
-        for line in open(self.dbname).readlines():
-            if line.startswith(token) and current_config:
-                configs.append(current_config)
-                current_config = []
-            current_config.append(line)
-        configs.append(current_config)
-
         split = self.appendtxt.split(' ')
         out_db1, out_db2 = (os.path.basename(self.dbname).split('.cfg')[0] + '_{}.cfg'.format(split[0]), 
                             os.path.basename(self.dbname).split('.cfg')[0] + '_{}.cfg'.format(split[1]))
+
+        configs = split_cfg_configs(self.dbname)
 
         if self.split_fraction:
             ndata = int(np.floor(self.split_fraction*len(configs)))
@@ -124,6 +116,7 @@ class MtpDbSplitter(DbSplitter):
 
         cfg1.close()
         cfg2.close()
+
 
 
     def write_config(self, g, config):

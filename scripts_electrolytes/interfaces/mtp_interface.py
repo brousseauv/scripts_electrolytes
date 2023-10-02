@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import numpy as np
 import subprocess as subp
+import re
+from ..utils.constants import ang_to_bohr
 
 
 def abistruct_to_cfg(db, struct, energy=None, forces=None, stresses=None):
@@ -156,3 +158,148 @@ def read_mv_grade(fname, verbose=False):
         print('    gamma stdev = {:.2f}'.format(data['stdev']))
 
     return data
+
+
+def split_cfg_configs(fname):
+
+    token = 'BEGIN_CFG'
+    configs = []
+    current_config = []
+
+    for line in open(fname).readlines():
+        if line.startswith(token) and current_config:
+            configs.append(current_config)
+            current_config = []
+        current_config.append(line)
+    configs.append(current_config)
+    return configs
+
+
+def convert_chunk_to_abivars(data, atomic_numbers):
+
+    ''' Converts a .cfg configuration into an abivars dict, and read EFS if applicable '''
+
+    natom = read_natom(data) 
+
+    lattice = read_lattice(data)
+
+    energy, stresses, idx = read_config_properties(data)
+
+    atomdata, header = read_atomdata(data, idx)
+
+    typat, xcart, forces = split_atomic_data(atomdata, header, natom, lattice) 
+
+    abivars = {'natom': natom,
+               'ntypat': len(atomic_numbers),
+               'znucl': atomic_numbers,
+               'typat': typat,
+               'acell': np.ones((3)),
+               'rprim': lattice * ang_to_bohr,
+               'xangst': xcart
+              }
+
+    return abivars, energy, forces, stresses
+
+
+def read_natom(data):
+
+    idx = data.index(' Size\n')
+    return int(data[idx+1].split('\n')[0])
+
+
+def read_lattice(data):
+
+    idx = data.index(' Supercell\n')
+    latt = np.zeros((3,3))
+    
+    for i in range(3):
+        latt[i, :] = re.sub(r"\s+", " ", data[idx+i+1].strip()).split(' ')
+    return latt
+
+
+def read_config_properties(data):
+
+    try:
+        idx = data.index(' Energy\n')
+        energy = data[idx+1].strip()
+        my_idx = idx
+    except:
+        energy = None
+
+    try:
+        idx = [i for i, item in enumerate(data) if re.search('PlusStress:', item)][0]
+        stress = np.asarray(re.sub(r"\s+", " ", data[idx+1].strip()).split(' '), dtype=np.double)
+        try:
+            my_idx
+        except:
+            my_idx = idx
+    except:
+        stress = None
+
+    try:
+        my_idx
+    except:
+        my_idx = [i for i, item in enumerate(data) if re.search('Feature', item)][0]
+
+    return energy, stress, my_idx
+
+
+def read_atomdata(data, idx):
+
+    start_idx = [i for i, item in enumerate(data) if re.search('AtomData:', item)][0]
+    header = data[start_idx]
+
+    return data[start_idx+1:idx], header
+
+
+def split_atomic_data(data, header, natom, latt):
+
+    if len(data) != natom:
+        raise ValueError('AtomData does not contain natom={} lines. Something went wrong, check your data.'.format(natom))
+
+    # check header to see if forces are present
+    if header.find('fx') != -1:
+        forces = np.zeros((natom, 3), dtype=float)
+    else:
+        forces = None
+
+    # check header to see which kind of coordinates are printed
+    if header.find('cartes_x') != -1:
+        pos_are_cart = True
+    elif header.find('direct_x') != -1:
+        pos_are_cart = False
+        latt_inv = np.linalg.inv(latt.T)
+    else:
+        raise ValueError('Could not find either cartesian or reduced coordinates in AtomData header. Check your data.')
+
+
+    header = re.sub(r'\s+', ' ', header.strip().split('AtomData:')[1].lstrip()).split(' ')
+
+    # find index for atom type, coordinates (and forces)
+    idx_typat = header.index('type')
+    if pos_are_cart:
+        idx_pos = header.index('cartes_x')
+    else:
+        idx_pos = header.index('direct_x')
+
+    if forces is not None:
+        idx_forces = header.index('fx')
+
+
+    typat = np.zeros((natom), dtype=int)
+    pos = np.zeros((natom, 3), dtype=float)
+    # Retrieve atom type, positions and forces from AtomData block
+    for a, atom in enumerate(data):
+        atom = re.sub(r'\s+', ' ', atom.strip()).split(' ')
+        typat[a] = int(atom[idx_typat])
+
+        if pos_are_cart:
+            pos[a, :] = atom[idx_pos:idx_pos+3]
+        else:
+            vec = np.asarray(atom[idx_pos:idx_pos+3])
+            pos[a, :] = np.matmul(latt_inv, vec)
+
+        if forces is not None:
+            forces[a, :] = atom[idx_forces:idx_forces+3]
+
+    return  typat, pos, forces

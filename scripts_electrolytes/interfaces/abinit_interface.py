@@ -46,8 +46,13 @@ def check_abivars(myvars):
     if len(fixvars)>0:
         raise ValueError('{} are not Abinit variables'.format(fixvars))
 
+
 def input_from_dict(struct, myvars, mypseudos):
 
     abi_input = AbinitInput(struct, mypseudos['pseudos'], pseudo_dir=mypseudos['pp_dirpath'], abi_kwargs=myvars)
     abi_input.write()
 
+
+def abivars_to_abistruct(myvars):
+
+    return Structure.from_abivars(myvars)

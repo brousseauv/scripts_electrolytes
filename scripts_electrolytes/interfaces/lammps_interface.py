@@ -133,7 +133,8 @@ def set_xyz_message(latt, energy, forces, stresses):
 
     lattice = 'Lattice="'
     for i in range(3):
-        lattice = ' '.join([lattice, '{0[0]} {0[1]} {0[2]}"'.format(['{:.8f}'.format(a) for a in latt[i, :]])])
+        lattice = ' '.join([lattice, '{0[0]} {0[1]} {0[2]}'.format(['{:.8f}'.format(a) for a in latt[i, :]])])
+    lattice = lattice+'"'
 
     if forces is not None:
         properties = 'Properties=species:S:1:pos:R:3:forces:R:3'
@@ -141,9 +142,9 @@ def set_xyz_message(latt, energy, forces, stresses):
         properties = 'Properties=species:S:1:pos:R:3'
 
     if energy is not None:
-        ene = 'energy={:.8f}'.format(energy)
+        ene = 'energy="{:.8f}"'.format(energy)
     if stresses is not None:
-        mystress = "stresses={0[0]} {0[1]} {0[2]} {0[3]} {0[4]} {0[5]}".format(['{:.8f}'.format(strs) for strs in stresses])
+        mystress = 'stress="{0[0]} {0[5]} {0[4]} {0[5]} {0[1]} {0[3]} {0[4]} {0[3]} {0[2]}"'.format(['{:.8f}'.format(strs) for strs in stresses])
 
     if energy is not None and stresses is not None:
         data = ' '.join([ene, mystress])

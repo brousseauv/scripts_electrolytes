@@ -22,6 +22,9 @@ from scripts_electrolytes.database.db_splitter import AseDbSplitter, MtpDbSplitt
         appendtxt: String containing the names that should be appended to the splitted databases.
                    Should be a single string, with the two entries separated by a space.
                    Default: "1 2"
+
+        seed: Random seed for numpy.shuffle. Can be specified if one wants to create identical splits of a given database.
+              Default: None (random seed value)
         
     For help about these options on the command line, type 
         python dbsplitter.py --help
