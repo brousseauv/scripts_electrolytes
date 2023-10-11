@@ -159,3 +159,6 @@ def set_xyz_message(latt, energy, forces, stresses):
         message = ' '.join([lattice, properties])
 
     return message
+
+
+

@@ -33,3 +33,27 @@ class SlurmWatcher:
         # to be tested
 
 
+def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir):
+
+    with open('job.sh', 'w') as f:
+
+        f.write('#!/usr/bin/bash\n')
+        # enumerate slurm args and write them
+        for key, val in args.items():
+            f.write(f'#SBATCH {key}={val}\n')
+        f.write('\n')
+        # write precommands
+        for line in precommands:
+            f.write(f'{line}\n')
+        f.write('\n')
+
+        f.write(f'cd {calcdir}\n\n')
+        # write the loop main command
+        f.write(f'for i in $(seq 0 {nloop}); do\n')
+        f.write(f'  cd $i\n')
+        for line in command:
+            f.write(f'  {line}\n')
+        f.write('  cd ..\n')
+        f.write('done\n')
+
+    f.close()

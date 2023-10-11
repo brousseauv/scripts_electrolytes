@@ -2,6 +2,7 @@ from ..interfaces.lammps_interface import read_traj_from_dump
 from ..interfaces.ase_interface import ase_to_abistruct
 from ..interfaces.mtp_interface import split_cfg_configs, convert_chunk_to_abivars
 from ..interfaces.abinit_interface import abivars_to_abistruct
+from ..interfaces.partn_interface import fix_species_in_xyz_mlip
 import numpy as np
 from ase.io import read as ase_read
 from ase.db import connect as ase_connect
@@ -146,9 +147,14 @@ class MtpDbReader(DbReader):
 
 class XyzDbReader(DbReader):
 
-    def __init__(self, fname):
+    def __init__(self, fname, fix_species=False, symbols=None):
 
         super(XyzDbReader, self).__init__(fname)
+        if fix_species:
+            if not symbols:
+                raise ValueError('when fix_species is activated in XyzReader, a list of atomic symbols as "symbols" should be provided')
+
+            fix_species_in_xyz_mlip(self.fname, symbols)
 
 
     def load_database(self):

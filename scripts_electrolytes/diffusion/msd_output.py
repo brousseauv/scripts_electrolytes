@@ -51,7 +51,7 @@ class MsdOutput:
                 self.msd_atoms = reader.read_value('mean_squared_displacement_individual_atoms')
 
 
-    def extract_atomic_jumps(self, threshold=4.0, plot=False, **kwargs):
+    def extract_atomic_jumps(self, threshold=4.0, plot=False, dist2=2.0, **kwargs):
 
         ''' Locate possible atomic jumps in individual atoms MSD(t), 
             i.e. values of MSD(t) that are larger than the threshold value. 
@@ -61,6 +61,10 @@ class MsdOutput:
 
             plot: Plot MSD(t) for the detected jumps for selected atoms and add visual guides as to where the jump occurs
             Default: False
+
+            dist2: Minimal difference between the current MSD and the average MSD over the last 200 steps so that the
+                   jump is detected.
+                   Default: 2.0 \AA^2
 
             I will also need to add a diff_threshold so that I can compare the jump with the average MSD over the last N steps (to locate single jumps, not all timesteps where MSD
             is larger than threshold)
@@ -72,12 +76,15 @@ class MsdOutput:
             mymsd = self.msd_atoms[:, a]
             if any(mymsd > threshold):
                 # or a condition with a mean?
+#                where = [idx for idx in range(len(mymsd)) if mymsd[idx]>threshold 
+#                        and np.abs(mymsd[idx]-np.mean(mymsd[idx-200:idx]))>threshold/2]
                 where = [idx for idx in range(len(mymsd)) if mymsd[idx]>threshold 
-                        and np.abs(mymsd[idx]-np.mean(mymsd[idx-200:idx]))>threshold/2]
+                        and np.abs(mymsd[idx]-np.mean(mymsd[idx-200:idx]))>dist2]
 
 #                        and np.abs(mymsd[idx]-mymsd[idx-100])>threshold/2 
                 # Keep only the first of each block of consecutive timesteps
                 # TO BE TESTED on multijump trajectories!!!!!
+                # FIX ME: for longer trajectories, the printed output is indigest
                 start, end = sort_consecutive_groups(where)
 
                 #print('\nFound jumps in atom {}, at timestep(s) {}'.format(a, start))

@@ -34,7 +34,8 @@ class DbConverter:
         if fmt == 'xyz' and not self.fname.endswith('.xyz'):
             raise Exception('Input file {} does not have .xyz extension expected from XYZ format')
         if fmt == 'dump' and not self.fname.endswith('.dump'):
-            raise Exception('Input file {} does not have .dump extension expected from LAMMPS-dump format')
+            if not self.fname.endswith('dmp'):
+                raise Exception('Input file {} does not have .dump or .dmp extension expected from LAMMPS-dump format')
 
         self.input_format = fmt
 

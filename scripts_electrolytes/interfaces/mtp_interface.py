@@ -291,7 +291,7 @@ def split_atomic_data(data, header, natom, latt):
     # Retrieve atom type, positions and forces from AtomData block
     for a, atom in enumerate(data):
         atom = re.sub(r'\s+', ' ', atom.strip()).split(' ')
-        typat[a] = int(atom[idx_typat])
+        typat[a] = int(atom[idx_typat])+1
 
         if pos_are_cart:
             pos[a, :] = atom[idx_pos:idx_pos+3]
