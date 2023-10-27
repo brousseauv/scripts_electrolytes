@@ -26,6 +26,12 @@ from scripts_electrolytes.database.db_converter import DbConverter
         atomic_numbers: List of integer atomic numbers (ordered as the species type in the dump file), for dump file conversion.
                         Default: None
 
+        start: Integer, index of the first configuration to convert
+               Default: 0
+
+        every: Integer, convert every "Every" configuration (i.e. data.structures[start::every])
+               Default: 1 (all)
+
         ex: the following command converts a database called mydatabase in .cfg format to .xyz format
 
             python dbconverter.py --in_dbname mydatabase.cfg  --input_format='mtp' --output_format='xyz'
@@ -44,6 +50,8 @@ def create_parser():
     parser.add_argument("--output_format", choices=['ase', 'mtp', 'xyz'], help="Output format for the database", required=True)
     parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
     parser.add_argument("--atomic_numbers", default=None, type=list_of_integers, help="List of atomic numbers, ordered as in dump/cfg file")
+    parser.add_argument("--start", type=int, default=0, help="Index of the first configuration to convert")
+    parser.add_argument("--every", type=int, default=1, help="Convert every 'Every' configuration in the db")
 
     return parser
 
@@ -63,10 +71,10 @@ def main(args):
 
     if args.atomic_numbers is not None:
         db = DbConverter(fname=args.in_dbname, input_format=args.input_format, output_format=args.output_format, dbname=args.out_dbname, 
-                         overwrite=args.overwrite, atomic_numbers=args.atomic_numbers)
+                         overwrite=args.overwrite, atomic_numbers=args.atomic_numbers, every=args.every, start=args.start)
     else:
         db = DbConverter(fname=args.in_dbname, input_format=args.input_format, output_format=args.output_format, dbname=args.out_dbname, 
-                         overwrite=args.overwrite)
+                         overwrite=args.overwrite, every=args.every, start=args.start)
 
     db.convert_database()
 

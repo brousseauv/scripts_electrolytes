@@ -49,7 +49,7 @@ def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir):
 
         f.write(f'cd {calcdir}\n\n')
         # write the loop main command
-        f.write(f'for i in $(seq 0 {nloop}); do\n')
+        f.write(f'for i in $(seq 0 {nloop-1}); do\n')
         f.write(f'  cd $i\n')
         for line in command:
             f.write(f'  {line}\n')

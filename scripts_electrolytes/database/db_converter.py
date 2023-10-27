@@ -12,7 +12,7 @@ from .db_reader import AseDbReader, MtpDbReader, XyzDbReader, DumpDbReader
 
 class DbConverter:
 
-    def __init__(self, fname, input_format = None, output_format=None, dbname=None, overwrite=False, atomic_numbers=None):
+    def __init__(self, fname, input_format = None, output_format=None, dbname=None, overwrite=False, atomic_numbers=None, start=0, every=1):
 
         self.fname = fname
         self.overwrite = overwrite
@@ -21,7 +21,8 @@ class DbConverter:
         self.set_output_format(output_format)
         self.set_dbname(dbname)
         self.atomic_numbers = atomic_numbers
-
+        self.every = every
+        self.start = start
 
     def check_input_format(self, fmt):
 
@@ -62,6 +63,8 @@ class DbConverter:
                 self.dbname = '{}.db'.format(os.path.splitext(dbname)[0])
             elif self.output_format == 'xyz' and os.path.splitext(dbname)[1] != '.xyz':
                 self.dbname = '{}.xyz'.format(os.path.splitext(dbname)[0])
+            else:
+                self.dbname = dbname
 
         else:
             root = os.path.splitext(self.fname)[0]
@@ -99,6 +102,6 @@ class DbConverter:
 
             # ASE : will need to check. Get the number of configs and find how to loop on them
             # MTP : easier to break the text into single configs? (as a text object or a rewritten temp text file?)
-        for idx, struct in enumerate(data.structures):
+        for idx, struct in enumerate(data.structures[self.start::self.every]):
             atoms = newdb.convert_structure(struct)
             newdb.add_to_database(out, atoms, data.energy[idx], data.forces[idx], data.stresses[idx])
