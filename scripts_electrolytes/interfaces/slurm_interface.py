@@ -33,7 +33,7 @@ class SlurmWatcher:
         # to be tested
 
 
-def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir):
+def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir, njobs=1):
 
     with open('job.sh', 'w') as f:
 
@@ -41,6 +41,8 @@ def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir):
         # enumerate slurm args and write them
         for key, val in args.items():
             f.write(f'#SBATCH {key}={val}\n')
+        if njobs>1:
+            f.write(f'#SBATCH --array 0-{njobs-1}\n')
         f.write('\n')
         # write precommands
         for line in precommands:
@@ -48,12 +50,38 @@ def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir):
         f.write('\n')
 
         f.write(f'cd {calcdir}\n\n')
-        # write the loop main command
-        f.write(f'for i in $(seq 0 {nloop-1}); do\n')
-        f.write(f'  cd $i\n')
-        for line in command:
-            f.write(f'  {line}\n')
-        f.write('  cd ..\n')
-        f.write('done\n')
+        # define job index
+        if njobs>1:
+            # case n
+            f.write(f'maxarray={njobs}\n')
+            f.write(f'njobs={nloop}\n')
+            f.write('array=$SLURM_ARRAY_TASK_ID\n')
+            f.write(f'jobs_per_array=$((njobs/maxarray))\n\n')
+
+            f.write(f'if [ $array -eq $((maxarray-1)) ] && [ $(( (array+1)*jobs_per_array-1 )) -ne $((njobs-1)) ]\n')
+            f.write('then\n')
+            f.write(f'  for j in $(seq $((0+array*jobs_per_array)) $((njobs-1 )) ); do\n')
+            f.write(f'    cd $i\n')
+            for line in command:
+                f.write(f'    {line}\n')
+            f.write('    cd ..\n')
+            f.write('  done\n')
+
+            f.write('else\n')
+            f.write(f'  for j in $(seq $((0+array*jobs_per_array)) $(( (array+1)*jobs_per_array-1 )) ); do\n')
+            f.write(f'    cd $i\n')
+            for line in command:
+                f.write(f'    {line}\n')
+            f.write('    cd ..\n')
+            f.write('  done\n')
+
+        else:
+            # write the loop main command
+            f.write(f'for i in $(seq $(()) {nloop-1}); do\n')
+            f.write(f'  cd $i\n')
+            for line in command:
+                f.write(f'  {line}\n')
+            f.write('  cd ..\n')
+            f.write('done\n')
 
     f.close()
