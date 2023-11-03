@@ -74,6 +74,7 @@ def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir, njob
                 f.write(f'    {line}\n')
             f.write('    cd ..\n')
             f.write('  done\n')
+            f.write('fi\n')
 
         else:
             # write the loop main command
