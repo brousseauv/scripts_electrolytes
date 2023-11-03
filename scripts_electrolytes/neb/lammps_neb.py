@@ -1,12 +1,12 @@
 import numpy as np
 import os
 from .neb import NebData, NebTraj
-from ..interfaces.lammps_interface import read_neb_logfile, read_config_from_dump
+from ..interfaces.lammps_interface import read_neb_logfile, read_config_from_dump, read_natoms
 import logging
 
 class LammpsNebData(NebData):
 
-    def __init__(self, fname='log.lammps', rootname='neb_from_lammps', rescale_energy=True):
+    def __init__(self, fname='log.lammps', log_fname='log.lammps.0', rootname='neb_from_lammps', rescale_energy=True):
 
 
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
@@ -16,13 +16,20 @@ class LammpsNebData(NebData):
         except:
             raise NameError('File {} does not exists. Please provide correct path to the "log.lammps" output file containing NEB results.'.format(fname))
 
+        try:
+            os.path.exists(log_fname)
+        except:
+            raise NameError('File {} does not exists. Please provide correct path to the "log.lammps.0" output file containing NEB results for the first replica.'.format(log_fname))
+
         super(LammpsNebData, self).__init__(fname, rootname)
+        self.log_fname = log_fname
 
         self.read_data(rescale_energy)
         self.print_barriers()
 
     def read_data(self, rescale_energy):
         self.forward_barrier, self.backward_barrier, self.reaction_coordinate_length, self.reaction_coordinate, self.potential_energy = read_neb_logfile(self.fname, rescale_energy)
+        self.natoms = read_natoms(self.log_fname)
 
 
 class LammpsNebTraj(NebTraj):

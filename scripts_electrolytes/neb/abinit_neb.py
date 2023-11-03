@@ -27,6 +27,8 @@ class HistNebData(NebData):
     def read_data(self, rescale_energy):
         
         hist = HistFile(self.fname)
+        self.natoms = hist.reader.read_dimvalue('natom')
+
         self.potential_energy, forces, stresses = read_neb_efs(hist)
         if rescale_energy:
             self.potential_energy -= self.potential_energy[0]

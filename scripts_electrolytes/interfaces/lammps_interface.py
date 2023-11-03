@@ -89,6 +89,23 @@ def read_neb_logfile(fname, rescale_energy):
     return forward_barrier, backward_barrier, reaction_coordinate_length, reaction_coordinate, energy
 
 
+def read_natoms(fname):
+    # This reads the number of atoms in a lammps simulation from a log.lammps.X file
+    # where the initial structure was read from a .lmp file
+    f = open(fname, 'r')
+    lines = f.readlines()
+
+    found = False
+    for line in lines:
+        if found:
+            natoms = int(line.split('atoms')[0])
+            break
+        else:
+            if line.find('reading atoms') != -1:
+                found = True
+    return natoms
+
+
 def slice_trajectory_from_dump(fname, out_rootname='traj', atomic_numbers=None, nskip=10):
 
     ''' Reads every nskip configuration of a dump trajectory file and writes it in .xyz format '''
