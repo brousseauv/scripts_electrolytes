@@ -60,7 +60,7 @@ def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir, njob
 
             f.write(f'if [ $array -eq $((maxarray-1)) ] && [ $(( (array+1)*jobs_per_array-1 )) -ne $((njobs-1)) ]\n')
             f.write('then\n')
-            f.write(f'  for j in $(seq $((0+array*jobs_per_array)) $((njobs-1 )) ); do\n')
+            f.write(f'  for i in $(seq $((0+array*jobs_per_array)) $((njobs-1 )) ); do\n')
             f.write(f'    cd $i\n')
             for line in command:
                 f.write(f'    {line}\n')
@@ -68,7 +68,7 @@ def write_slurm_submitfile_loop(args, precommands, command, nloop, calcdir, njob
             f.write('  done\n')
 
             f.write('else\n')
-            f.write(f'  for j in $(seq $((0+array*jobs_per_array)) $(( (array+1)*jobs_per_array-1 )) ); do\n')
+            f.write(f'  for i in $(seq $((0+array*jobs_per_array)) $(( (array+1)*jobs_per_array-1 )) ); do\n')
             f.write(f'    cd $i\n')
             for line in command:
                 f.write(f'    {line}\n')
