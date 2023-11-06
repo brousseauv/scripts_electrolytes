@@ -39,9 +39,13 @@ def abistruct_to_cfg(db, struct, energy=None, forces=None, stresses=None):
     db.write("END_CFG\n\n")
 
 
-def read_errors(fname, runtype):
+def read_errors(fname, runtype, version='mlip2'):
 
     check_runtype(runtype)
+
+    if version not in ['mlip2', 'mlip3']:
+        raise ValueError('"version" should either be "mlip2" or "mlip3" but I got {}'.format(version))
+
     try:
         f = open(fname, 'r')
         lines = f.readlines()
@@ -51,38 +55,53 @@ def read_errors(fname, runtype):
 
     train_block = []
     valid_block = []
-    train_block_on = False
-    valid_block_on = False
 
-    for line in lines:
-        if 'TRAIN ERRORS' in line:
-            train_block_on = True
-            valid_block_on = False
-        if 'VALIDATION ERRORS' in line:
-            train_block_on = False
-            valid_block_on = True
+    if version == 'mlip2':
 
-        if train_block_on:
-            train_block.append(line)
-        elif valid_block_on:
-            valid_block.append(line)
+        train_block_on = False
+        valid_block_on = False
 
+        for line in lines:
+            if 'TRAIN ERRORS' in line:
+                train_block_on = True
+                valid_block_on = False
+            if 'VALIDATION ERRORS' in line:
+                train_block_on = False
+                valid_block_on = True
+
+            if train_block_on:
+                train_block.append(line)
+            elif valid_block_on:
+                valid_block.append(line)
+
+    elif version == 'mlip3':
+        if runtype == 'all':
+            raise ValueError('With MLIP3, cannot read train errors and valid errors in the same file.')
+        if runtype == 'train':
+            train_block = []
+            for line in lines:
+                train_block.append(line)
+        if runtype == 'valid':
+            valid_block = []
+            for line in lines:
+                valid_block.append(line)
+       
     if not train_block and runtype == 'train':
         raise Exception('Train errors block is empty')
-    if not valid_block and runtype == 'test':
+    if not valid_block and runtype == 'valid':
         raise Exception('Validation errors block is empty')
 
     if runtype == 'train' or runtype == 'all':
-        train_block = split_block(train_block)
+        train_block = split_block(train_block, version)
         train_data = read_block(train_block)
 
     if runtype == 'valid' or runtype == 'all':
-        valid_block = split_block(valid_block)
+        valid_block = split_block(valid_block, version)
         valid_data = read_block(valid_block)
 
     if runtype == 'train':
         return train_data
-    elif runtype == 'test':
+    elif runtype == 'valid':
         return valid_data
     else:
         return train_data, valid_data
@@ -90,12 +109,12 @@ def read_errors(fname, runtype):
 
 def check_runtype(runtype):
     ''' Checks the runtype keyword is correct'''
-    keys = ['train', 'test', 'all']
+    keys = ['train', 'valid', 'all']
     if runtype not in keys:
         raise ValueError('Runtype should be {} but I received {}'.format(keys, runtype))
 
 
-def split_block(block):
+def split_block(block, version):
     ''' Splits an Errors report block into strings from individual variables'''
 
     block = "".join(block)
@@ -106,9 +125,16 @@ def split_block(block):
     split_block.append(block[0])
     block = block[1].split('Forces:')
     split_block.append(block[0])
-    block = block[1].split('Stresses (in eV):')
+
+    if version == 'mlip2':
+        block = block[1].split('Stresses (in eV):')
+    elif version == 'mlip3':
+        block = block[1].split('Stresses (in energy units):')
     split_block.append(block[0])
-    block = block[1].split('Stresses (in GPa):')
+    if version == 'mlip2':
+        block = block[1].split('Stresses (in GPa):')
+    elif version == 'mlip3':
+        block = block[1].split('Virial stresses (in pressure units):')
     block = block[1].split('_______________________________________________')
     split_block.append(block[0])
 
