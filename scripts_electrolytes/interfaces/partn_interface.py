@@ -32,5 +32,24 @@ def fix_species_in_xyz_mlip(fname, symbols):
 
 
 def split_xyz_configs(fname):
+    
+    token = 'Lattice='
+    configs = []
+    token_idx = []
 
-    print('Not done yet!)
+    lines = open(fname).readlines()
+
+    for iline, line in enumerate(lines):
+        if line.startswith(token):
+            token_idx.append(iline)
+
+    for i, idx in enumerate(token_idx):
+        try:
+            # Read current block up to one line before next "Lattice" token
+            current_config = lines[idx-1:token_idx[i+1]-1]
+        except:
+            # Last config has no next "Lattice" token
+            current_config = lines[idx-1:]
+        configs.append(current_config)
+    return configs
+

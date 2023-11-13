@@ -1,5 +1,5 @@
 import argparse
-from scripts_electrolytes.database.db_splitter import AseDbSplitter, MtpDbSplitter
+from scripts_electrolytes.database.db_splitter import AseDbSplitter, MtpDbSplitter, XyzDbSplitter
 
 '''
     These classes split a given database in ASE .db or MTP .cfg format in two distinct databases.
@@ -64,6 +64,6 @@ if __name__ == "__main__":
     elif args.dbname.endswith(".xyz"):
         dbspl = XyzDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt, args.seed)    
     else:
-        raisevalueError('Unknow file format: {}'.format(os.path.splitext(args.dbname)[1])
+        raise ValueError('Unknow file format: {}'.format(os.path.splitext(args.dbname)[1]))
 
     dbspl.split_data() 

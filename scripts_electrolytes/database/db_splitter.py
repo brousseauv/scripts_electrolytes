@@ -135,7 +135,7 @@ class XyzDbSplitter(DbSplitter):
 
     def split_data(self):
 
-        raise NotImplementedError('XyzDbSplitted not yet implemented.')
+#        raise NotImplementedError('XyzDbSplitted not yet implemented.')
         split = self.appendtxt.split(' ')
         out_db1, out_db2 = (os.path.basename(self.dbname).split('.xyz')[0] + '_{}.xyz'.format(split[0]), 
                             os.path.basename(self.dbname).split('.xyz')[0] + '_{}.xyz'.format(split[1]))
