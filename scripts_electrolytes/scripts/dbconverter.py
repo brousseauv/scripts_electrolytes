@@ -8,8 +8,7 @@ from scripts_electrolytes.database.db_converter import DbConverter
 
     Simply call python dbconverter.py --<OPTION1> <value1> -- <OPTION2> <value2> etc.
 
-    Options: dbname: filename for the creater database
-
+    Options: 
 
         in_dbname (required): filename of the database to be converted
 

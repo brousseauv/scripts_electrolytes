@@ -32,6 +32,9 @@ from scripts_electrolytes.database.db_creator import MtpDbCreator, AseDbCreator,
         overwrite: Boolean; indicates if the database should be overwritten in case the filename already exists.
                    Default = False
 
+        append: Boolean; should the new data be appended to an existing database named "dbname"
+                Default = False
+
         removeekin: Boolean; should the ionic kinetic energy be removed from the total energy.
                      Default: False
 

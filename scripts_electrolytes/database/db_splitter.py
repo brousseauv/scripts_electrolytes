@@ -2,6 +2,7 @@ import numpy as np
 import os
 from ase.db import connect
 from ..interfaces.mtp_interface import split_cfg_configs
+from ..interfaces.partn_interface import split_xyz_configs
 
 '''
     These classes split a given database in ASE .db or MTP .cfg format in two distinct databases.
@@ -63,7 +64,7 @@ class AseDbSplitter(DbSplitter):
             if self.split_fraction:
                 ndata = int(np.floor(self.split_fraction*db.count()))
             else:
-                ndata = self.split()
+                ndata = self.nsplit
             idx = np.arange(1, db.count() + 1)
 
             if self.seed:
@@ -124,34 +125,50 @@ class MtpDbSplitter(DbSplitter):
         for line in config:
             g.write(line)
 
-#def create_parser():
-#
-#    parser = argparse.ArgumentParser()
-#    parser.add_argument("dbname", help="path to the database file to be splitted")
-#    data = parser.add_mutually_exclusive_group(required=True)
-#    data.add_argument("--nsplit", type=int, help="number of entries in the 1st extracted database", default=None)
-#    data.add_argument("--fsplit", type=float, help="fraction of entries in the 1st extracted database, between 0 and 1",
-#                      default=None)
-#    parser.add_argument("--appendtxt", default="1 2", help="Text to be appended to the splitted databases. Single string separated by a space")
-#    return parser
-#
-#def check_parser(args, parser):
-#
-#    if args.nsplit is None and args.fsplit is None:
-#        parser.error("--nsplit or --fsplit should be passed as arguments")
-#
-#    if args.fsplit is not None:
-#        if args.fsplit > 1.0 or args.fsplit < 0.0:
-#            parser.error("--fsplit should be a float between 0 and 1")
-#
-#if __name__ == "__main__":
-#
-#    parser = create_parser()
-#    args = parser.parse_args()
-#    check_parser(args, parser)
-#
-#    if args.dbname.endswith(".db"):
-#        dbspl = AseDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt)    
-#    elif args.dbname.endswith(".cfg"):
-#        dbspl = MtpDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt)    
-#    dbspl.split_data() 
+
+class XyzDbSplitter(DbSplitter):
+
+    def __init__(self, dbname, nsplit, split_fraction, appendtxt, seed):
+
+        super(XyzDbSplitter, self).__init__(dbname, nsplit, split_fraction, appendtxt, seed)
+
+
+    def split_data(self):
+
+        raise NotImplementedError('XyzDbSplitted not yet implemented.')
+        split = self.appendtxt.split(' ')
+        out_db1, out_db2 = (os.path.basename(self.dbname).split('.xyz')[0] + '_{}.xyz'.format(split[0]), 
+                            os.path.basename(self.dbname).split('.xyz')[0] + '_{}.xyz'.format(split[1]))
+
+        configs = split_xyz_configs(self.dbname)
+
+        if self.split_fraction:
+            ndata = int(np.floor(self.split_fraction*len(configs)))
+        else:
+            ndata = self.nsplit
+
+        idx = np.arange(0, len(configs))
+
+        if self.seed:
+            np.random.seed(self.seed)
+        np.random.shuffle(idx)
+        idx1, idx2 = idx[:ndata], idx[ndata:]
+
+        cfg1, cfg2 = (open(out_db1, 'w'), 
+                      open(out_db2, 'w'))
+
+        for idx in idx1:
+            self.write_config(cfg1, configs[idx]) 
+        for idx in idx2:
+            self.write_config(cfg2, configs[idx]) 
+
+        cfg1.close()
+        cfg2.close()
+
+
+
+    def write_config(self, g, config):
+
+        for line in config:
+            g.write(line)
+

@@ -29,3 +29,8 @@ def fix_species_in_xyz_mlip(fname, symbols):
 
        f.seek(0)
        f.writelines(content)
+
+
+def split_xyz_configs(fname):
+
+    print('Not done yet!)

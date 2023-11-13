@@ -61,4 +61,9 @@ if __name__ == "__main__":
         dbspl = AseDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt, args.seed)    
     elif args.dbname.endswith(".cfg"):
         dbspl = MtpDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt, args.seed)    
+    elif args.dbname.endswith(".xyz"):
+        dbspl = XyzDbSplitter(args.dbname, args.nsplit, args.fsplit, args.appendtxt, args.seed)    
+    else:
+        raisevalueError('Unknow file format: {}'.format(os.path.splitext(args.dbname)[1])
+
     dbspl.split_data() 
