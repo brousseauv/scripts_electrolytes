@@ -58,7 +58,7 @@ class AseDbReader(DbReader):
             self.structures.append(ase_to_abistruct(struct))
 
             if self.has_energy:
-                self.energy[i] = traj[i].data['energy']
+                self.energy[i] = float(traj[i].data['energy'])
             if self.has_forces:
                 self.forces[i, :, :] = traj[i].data['forces']
             if self.has_stress:

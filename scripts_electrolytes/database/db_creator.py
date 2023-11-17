@@ -4,6 +4,7 @@ import os
 from abipy.dynamics.hist import HistFile
 from abipy.abilab import abiopen
 from ase.db import connect
+import numpy as np
 from scripts_electrolytes.interfaces.ase_interface import abistruct_to_ase
 from scripts_electrolytes.interfaces.mtp_interface import abistruct_to_cfg
 from scripts_electrolytes.interfaces.lammps_interface import abistruct_to_xyz
@@ -168,7 +169,6 @@ class AseDbCreator(DbCreator):
 
     
     def create_database(self):
-        # FIX ME: test if this appends to the db.
         return connect(self.dbname)
 
 
@@ -177,6 +177,8 @@ class AseDbCreator(DbCreator):
 
 
     def add_to_database(self, db, atoms, energy, forces, stresses):
+        if isinstance(energy, float):
+            energy = np.array([energy])
         db.write(atoms, data={'energy': energy, 'forces': forces, 'stress': stresses})
 
 

@@ -1,6 +1,7 @@
 #! /usr/bin/env/python
 
 import os
+import numpy as np
 from ase.db import connect
 from scripts_electrolytes.interfaces.ase_interface import abistruct_to_ase
 from scripts_electrolytes.interfaces.mtp_interface import abistruct_to_cfg
@@ -138,6 +139,8 @@ class AseDbMerger(DbMerger):
 
 
     def add_to_database(self, db, atoms, energy, forces, stresses):
+        if isinstance(energy, float):
+            energy = np.array([energy])
         db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
 
 
