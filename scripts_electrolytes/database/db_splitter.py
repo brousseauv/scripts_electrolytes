@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from ase.db import connect
+from copy import deepcopy
 from ..interfaces.mtp_interface import split_cfg_configs
 from ..interfaces.partn_interface import split_xyz_configs
 
@@ -60,6 +61,10 @@ class AseDbSplitter(DbSplitter):
                             self.dbname.split('.db')[0] + '_{}.db'.format(split[1]))
 
         with connect(self.dbname) as db, connect(out_db1) as db1, connect(out_db2) as db2:
+
+            meta = deepcopy(db.metadata)
+            db1.metadata = meta
+            db2.metadata = meta
 
             if self.split_fraction:
                 ndata = int(np.floor(self.split_fraction*db.count()))

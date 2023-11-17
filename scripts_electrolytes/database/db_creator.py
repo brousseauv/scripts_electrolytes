@@ -177,7 +177,7 @@ class AseDbCreator(DbCreator):
 
 
     def add_to_database(self, db, atoms, energy, forces, stresses):
-        db.write(atoms, data={'energy': energy, 'forces': forces, 'stresses': stresses})
+        db.write(atoms, data={'energy': energy, 'forces': forces, 'stress': stresses})
 
 
 

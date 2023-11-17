@@ -62,7 +62,7 @@ class AseDbReader(DbReader):
             if self.has_forces:
                 self.forces[i, :, :] = traj[i].data['forces']
             if self.has_stress:
-                self.stresses[i, :] = traj[i].data['stresses']
+                self.stresses[i, :] = traj[i].data['stress']
 
 #    
     def set_properties(self, traj):
@@ -83,7 +83,7 @@ class AseDbReader(DbReader):
             self.has_forces = False
 
         # check if traj contains stresses
-        if 'stresses' in info and traj[0].data['stresses'] is not None:
+        if 'stress' in info and traj[0].data['stress'] is not None:
             self.has_stress = True
         else:
             self.has_stress = False
