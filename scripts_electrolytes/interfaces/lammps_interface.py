@@ -1,13 +1,18 @@
 import numpy as np
 import pandas as pd
+import warnings
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.md.analysis import DiffusionCoefficient
+from ase import Atoms
+from abipy.data import nist_database
 import os
+import netCDF4 as nc
 
 ''' Some functions to treat the outputs from a LAMMPS run'''
 
 def extract_thermo(fname, out='thermo.dat'):
+    ''' Extract text block containing "thermo" output data in LAMMPS output file '''
 
     f = open(fname, 'r')
     g = open(out, 'w')
@@ -20,10 +25,10 @@ def extract_thermo(fname, out='thermo.dat'):
             g.write(line)
         if line.find('Per MPI rank') != -1:
             start = True
-
     return out
 
 def create_thermo_dataframe(fname):
+    ''' Read "thermo" command function and store in DataFrame '''
 
     cols = pd.read_csv(fname, delimiter=' ', skipinitialspace=True, nrows=1).columns
     df = pd.read_csv(fname, delimiter=' ', skipinitialspace=True, usecols=cols[:-1])
@@ -32,12 +37,14 @@ def create_thermo_dataframe(fname):
 
 
 def read_thermo(data, key):
+    ''' Transfer data from string to numeric '''
 
     data[key] = pd.to_numeric(data[key])
     return data[key].values
 
 
 def read_msd_from_thermo(data):
+    ''' Read MSD data from the output of "thermo" command in LAMMPS output file '''
 
     time = read_thermo(data, 'Time')
     step = read_thermo(data, 'Step')[:2]
@@ -49,6 +56,9 @@ def read_msd_from_thermo(data):
 
 
 def read_traj_from_dump(fname, atomic_numbers, which=':'):
+    ''' Read full trajectory from LAMMPS text dump file '''
+
+    warnings.warn('Computing diffusion from a LAMMPS text dump file. Make sure the positions are unwrapped.')
 
     traj= ase_read(fname, format='lammps-dump-text', index=which)
 
@@ -61,6 +71,8 @@ def read_traj_from_dump(fname, atomic_numbers, which=':'):
 
 
 def read_config_from_dump(fname, atomic_numbers, which=-1):
+    ''' Reads a specified atomic configuration from a LAMMPS dump text file
+        configuration index define by "which" arg. '''
 
     atoms = ase_read(fname, format='lammps-dump-text', index=which)
 
@@ -71,8 +83,8 @@ def read_config_from_dump(fname, atomic_numbers, which=-1):
     return atoms
 
 def read_neb_logfile(fname, rescale_energy):
-
     ''' Reads a log.lammps main log output file and extracts the converged results '''
+    
     f = open(fname, 'r')
     lines = f.readlines()
     data = lines[-1]
@@ -90,8 +102,9 @@ def read_neb_logfile(fname, rescale_energy):
 
 
 def read_natoms(fname):
-    # This reads the number of atoms in a lammps simulation from a log.lammps.X file
-    # where the initial structure was read from a .lmp file
+    ''' This reads the number of atoms in a lammps simulation from a log.lammps.X file
+        where the initial structure was read from a .lmp file '''
+
     f = open(fname, 'r')
     lines = f.readlines()
 
@@ -107,8 +120,8 @@ def read_natoms(fname):
 
 
 def slice_trajectory_from_dump(fname, out_rootname='traj', atomic_numbers=None, nskip=10):
-
     ''' Reads every nskip configuration of a dump trajectory file and writes it in .xyz format '''
+    
     if not atomic_numbers:
         raise Exception('Must provide a list of atomic numbers')
     if not isinstance(nskip, int):
@@ -125,8 +138,8 @@ def slice_trajectory_from_dump(fname, out_rootname='traj', atomic_numbers=None, 
 
 
 def abistruct_to_xyz(db, struct, energy=None, forces=None, stresses=None):
-
     '''add configuration in extended XYZ format'''
+
     db.write("{}\n".format(struct.num_sites))
     
     message = set_xyz_message(struct.lattice.matrix, energy, forces, stresses)
@@ -147,6 +160,7 @@ def abistruct_to_xyz(db, struct, energy=None, forces=None, stresses=None):
 
 
 def set_xyz_message(latt, energy, forces, stresses):
+    ''' Set the content of the message line of .xyz data format'''
 
     lattice = 'Lattice="'
     for i in range(3):
@@ -178,4 +192,35 @@ def set_xyz_message(latt, energy, forces, stresses):
     return message
 
 
+def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
+    ''' Read trajectory data from LAMMPS dump file in netCDF format,
+        and convert to a list of ASE Atoms objects
+    '''
 
+    traj = []
+
+    with nc.Dataset(fname, 'r') as root:
+        lattice = root.variables['cell_lengths'][:, :] # frame, 3
+        angles = root.variables['cell_angles'][:, :]  # frame, 3
+        atom_id = root.variables['id'][:, :]  # frame, natom
+        atom_type = root.variables['type'][:, :]  # frame, natom
+        coords = root.variables['unwrapped_coordinates'][:, : ,:]  # frame, natom, 3
+        # Time array; frame indexes are scaled by scale_factor = timestep in calculations
+        time = root.variables['time'][:]
+        # Define cell from lattice parammeters and angles
+        cell = np.concatenate((lattice, angles), axis=1)
+     
+        for i in range(len(time)):
+            symbol = get_symbol(atom_type[i,:], atomic_numbers)
+            atoms = Atoms(symbol, cell=cell[i], pbc=True, positions=coords[i,:])
+            traj.append(atoms)
+
+    return time, traj
+
+
+def get_symbol(idx, numbers):
+    ''' Extract atomic symbol of the current configuration'''
+
+    atomic_types = [numbers[j-1] for j in idx]
+    symbol = ''.join([nist_database.symbol_from_Z(a)+str(atomic_types.count(a)) for a in numbers])
+    return symbol

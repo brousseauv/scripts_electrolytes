@@ -1,5 +1,11 @@
 import numpy as np
-from ..interfaces.lammps_interface import extract_thermo, create_thermo_dataframe, read_msd_from_thermo, read_traj_from_dump
+from ..interfaces.lammps_interface import (
+        extract_thermo, 
+        create_thermo_dataframe, 
+        read_msd_from_thermo, 
+        read_traj_from_dump,
+        read_traj_from_ncdump
+        )
 from .msd import MsdData
 from ase.md.analysis import DiffusionCoefficient
 import logging
@@ -110,7 +116,7 @@ class LammpsMsdData(MsdData):
 #            if discard_init_steps != 0:
 #                raise ValueError('With "thermo" files, discard_init_steps should be 0 (default value)')
 
-        elif self.filetype == 'dump':
+        elif self.filetype == 'dump' or self.filetype == 'dump-netcdf':
             if not timestep:
                 raise ValueError('Missing value for timestep (in ps)')
             else:
@@ -129,12 +135,19 @@ class LammpsMsdData(MsdData):
             else:
                 self.temperature = input_temperature
 
-            self.data_source = 'LAMMPS .dump file'
+
             self.atom_type = atom_type
             logging.info('Will average MSD(T) on {} atoms'.format(self.atom_type))
 
             logging.info('Extracting trajectories...')
-            self.traj = read_traj_from_dump(self.fname, atomic_numbers)
+
+            if self.filetype == 'dump':
+                self.data_source = 'LAMMPS .dump file'
+                self.traj = read_traj_from_dump(self.fname, atomic_numbers)
+            elif self.filetype == 'dump-netcdf':
+                self.data_source = 'LAMMPS .dump netCDF file'
+                self.time, self.traj = read_traj_from_ncdump(self.fname, atomic_numbers)
+
             # Discard some initial timesteps
             self.traj = self.traj[discard_init_steps:]
             self.get_atoms_for_diffusion()
@@ -143,13 +156,15 @@ class LammpsMsdData(MsdData):
             logging.info('Computing MSD from atomic positions...')
             self.compute_msd_from_positions()
             logging.info('... done!')
-            self.time = timestep*np.arange(len(self.msd))
+
+            if self.filetype == 'dump':
+                self.time = timestep*np.arange(len(self.msd))
+            elif self.filetype == 'dump-netcdf':
+                self.time = self.time[discard_init_steps:]
+                self.time -= self.time[0]
+
             # Just curious, does this work?!?
 #            self.coeff = self.get_diffusion_ase(timestep)
-
-        elif self.filetype == 'dump-netcdf':
-            self.data_source = 'LAMMPS .dump netCDF file'
-            raise NotImplementedError('"dump-netcdf" filetype not yet implemented')
 
         self.diffusion = self.extract_diffusion_coefficient()
         self.msd_std = self.extract_msd_errors()
