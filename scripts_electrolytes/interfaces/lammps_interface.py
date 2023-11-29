@@ -8,6 +8,7 @@ from ase import Atoms
 from abipy.data import nist_database
 import os
 import netCDF4 as nc
+from ase.io.formats import string2index
 
 ''' Some functions to treat the outputs from a LAMMPS run'''
 
@@ -197,6 +198,12 @@ def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
         and convert to a list of ASE Atoms objects
     '''
 
+    if isinstance(which, str):
+        try:
+            index = string2index(which)
+        except ValueError:
+            pass
+    print(index)
     traj = []
 
     with nc.Dataset(fname, 'r') as root:
@@ -210,11 +217,11 @@ def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
         # Define cell from lattice parammeters and angles
         cell = np.concatenate((lattice, angles), axis=1)
      
-        for i in range(len(time)):
+        for i in list(range(len(time)))[index]:
             symbol = get_symbol(atom_type[i,:], atomic_numbers)
             atoms = Atoms(symbol, cell=cell[i], pbc=True, positions=coords[i,:])
             traj.append(atoms)
-
+        print(len(traj))
     return time, traj
 
 
@@ -224,3 +231,34 @@ def get_symbol(idx, numbers):
     atomic_types = [numbers[j-1] for j in idx]
     symbol = ''.join([nist_database.symbol_from_Z(a)+str(atomic_types.count(a)) for a in numbers])
     return symbol
+
+
+def extract_trajectory_from_ncdump(fname, out_rootname='traj', atomic_numbers=None, bounds=None, fmt='netcdf'):
+    ''' Extracts the bounds[0] to bounds[1] configurations of a LAMMPS netcdf dump trajectory file 
+        and writes it in .xyz or netcdf format '''
+    
+    if not bounds:
+        raise ValueError('"bounds"  = [start, stop] should be defined')
+    if not isinstance(bounds, list):
+        raise TypeError(f'"bounds" should be a list, but I got {type(bounds)}')
+    if len(bounds) != 2:
+        raise ValueError(f'"bounds" should have lenght 2 but I got lenght {len(bounds)}')
+
+    if fmt not in ['netcdf', 'xyz']:
+        raise ValueError(f'output format should be "xyz" or "netcdf", but I got {fmt}')
+
+    if not atomic_numbers:
+        raise Exception('Must provide a list of atomic numbers')
+    if not os.path.exists(fname):
+        raise ValueError('File {} does not exist'.format(fname))
+
+    which = '{}:{}'.format(bounds[0], bounds[1])
+
+    time, trajectory = read_traj_from_ncdump(fname, atomic_numbers, which=which)
+
+    if fmt == 'xyz':
+        out_fname = '{}.xyz'.format(out_rootname)
+        ase_write(filename=out_fname, images=trajectory, append=True, format='xyz')
+    elif fmt == 'netcdf':
+        out_fname = '{}.nc'.format(out_rootname)
+        ase_write(filename=out_fname, images=trajectory, append=False, format='netcdftrajectory')
