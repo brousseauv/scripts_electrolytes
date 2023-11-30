@@ -221,7 +221,7 @@ def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
             symbol = get_symbol(atom_type[i,:], atomic_numbers)
             atoms = Atoms(symbol, cell=cell[i], pbc=True, positions=coords[i,:])
             traj.append(atoms)
-        print(len(traj))
+    
     return time, traj
 
 
@@ -239,10 +239,12 @@ def extract_trajectory_from_ncdump(fname, out_rootname='traj', atomic_numbers=No
     
     if not bounds:
         raise ValueError('"bounds"  = [start, stop] should be defined')
-    if not isinstance(bounds, list):
-        raise TypeError(f'"bounds" should be a list, but I got {type(bounds)}')
+    if not isinstance(bounds, tuple):
+        raise TypeError(f'"bounds" should be a tuple, but I got {type(bounds)}')
     if len(bounds) != 2:
         raise ValueError(f'"bounds" should have lenght 2 but I got lenght {len(bounds)}')
+    if not (bounds[1]>bounds[0]):
+        raise ValueError(f'"bounds" entries should be in increasing order, but I got {bounds}')
 
     if fmt not in ['netcdf', 'xyz']:
         raise ValueError(f'output format should be "xyz" or "netcdf", but I got {fmt}')
