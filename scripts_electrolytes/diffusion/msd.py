@@ -141,6 +141,10 @@ class MsdData:
             data[:] = self.timestep
 
             data = dts.createVariable(
+                    'discard_initial_steps', 'i',  ('one'))
+            data[:] = self.discard_init_steps
+
+            data = dts.createVariable(
                     'mean_squared_displacement', 'd',
                     ('number_of_frames'))
             data.units = 'Angstrom^2'
@@ -169,6 +173,7 @@ class MsdData:
             f.write('Temperature: {:.0f}K\n'.format(self.temperature))
             f.write('Runtime: {:.5f} ps\n'.format(self.time[-1]))
             f.write('Timestep: {:.5f} ps\n'.format(self.timestep))
+            f.write('{} initial MD steps have been discarded'.format(self.discard_init_steps))
             f.write('Diffusing atoms type: {}\n'.format(self.atom_type))
             f.write('MSD type: {}\n'.format(self.msd_type))
             f.write('Diffusion coefficient: {:.5e} cm^2/s\n'.format(self.diffusion))

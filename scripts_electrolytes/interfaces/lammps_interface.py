@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import warnings
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.md.analysis import DiffusionCoefficient
@@ -58,8 +57,6 @@ def read_msd_from_thermo(data):
 
 def read_traj_from_dump(fname, atomic_numbers, which=':'):
     ''' Read full trajectory from LAMMPS text dump file '''
-
-    warnings.warn('Computing diffusion from a LAMMPS text dump file. Make sure the positions are unwrapped.')
 
     traj= ase_read(fname, format='lammps-dump-text', index=which)
 

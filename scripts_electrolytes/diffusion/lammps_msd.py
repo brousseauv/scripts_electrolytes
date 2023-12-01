@@ -107,6 +107,7 @@ class LammpsMsdData(MsdData):
                        discard_init_steps, discard_init_steps_new))
                 self.msd = self.msd[discard_init_steps_new:]
                 self.time = self.time[discard_init_steps_new:]
+                self.discard_init_steps = discard_init_steps
 
                 #  I shifted the time so the first used frame is t=0. That does not affect the slope, which is what I am looking for anyway
                 self.time -= self.time[0]
@@ -143,6 +144,7 @@ class LammpsMsdData(MsdData):
 
             if self.filetype == 'dump':
                 self.data_source = 'LAMMPS .dump file'
+                warnings.warn('Computing diffusion from a LAMMPS text dump file. Make sure the positions are unwrapped.')
                 self.traj = read_traj_from_dump(self.fname, atomic_numbers)
             elif self.filetype == 'dump-netcdf':
                 self.data_source = 'LAMMPS .dump netCDF file'
@@ -162,6 +164,8 @@ class LammpsMsdData(MsdData):
             elif self.filetype == 'dump-netcdf':
                 self.time = self.time[discard_init_steps:]
                 self.time -= self.time[0]
+
+            self.discard_init_steps = discard_init_steps
 
             # Just curious, does this work?!?
 #            self.coeff = self.get_diffusion_ase(timestep)
