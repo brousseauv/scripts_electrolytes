@@ -47,8 +47,10 @@ class AseDbSplitter(DbSplitter):
     def split_data(self):
 
         split = self.appendtxt.split(' ')
-        out_db1, out_db2 = (self.dbname.split('.db')[0] + '_{}.db'.format(split[0]), 
-                            self.dbname.split('.db')[0] + '_{}.db'.format(split[1]))
+#        out_db1, out_db2 = (self.dbname.strip('.db') + '_1.db', 
+#                            self.dbname.strip('.db') + '_2.db')
+        out_db1, out_db2 = (self.dbname.strip('.db') + '_{}.db'.format(split[0]), 
+                            self.dbname.strip('.db') + '_{}.db'.format(split[1]))
 
         with connect(self.dbname) as db, connect(out_db1) as db1, connect(out_db2) as db2:
 
@@ -89,9 +91,9 @@ class MtpDbSplitter(DbSplitter):
         configs.append(current_config)
 
         split = self.appendtxt.split(' ')
-        out_db1, out_db2 = (self.dbname.split('.cfg')[0] + '_{}.cfg'.format(split[0]), 
-                            self.dbname.split('.cfg')[0] + '_{}.cfg'.format(split[1]))
-
+        out_db1, out_db2 = (self.dbname.strip('.cfg') + '_{}.cfg'.format(split[0]), 
+                            self.dbname.strip('.cfg') + '_{}.cfg'.format(split[1]))
+       
         if self.split_fraction:
             ndata = int(np.floor(self.split_fraction*len(configs)))
         else:
