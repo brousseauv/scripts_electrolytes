@@ -200,7 +200,7 @@ def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
             index = string2index(which)
         except ValueError:
             pass
-    print(index)
+    
     traj = []
 
     with nc.Dataset(fname, 'r') as root:
