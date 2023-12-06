@@ -166,7 +166,6 @@ class LammpsMsdData(MsdData):
                 self.time -= self.time[0]
 
             self.discard_init_steps = discard_init_steps
-
             # Just curious, does this work?!?
 #            self.coeff = self.get_diffusion_ase(timestep)
 
