@@ -64,10 +64,9 @@ class HistMsdData(MsdData):
                         "timesliced": for each time interval t, the MSD of each individual atom is averaged over all possible
                         time slices equivalent to t (ex.: if t=2, average 2-0, 3-1, 4-2, etc.)
 
-            discard_init_steps: Do not take the N first steps of the trajectory into account when computing MSD.
+            discard_init_steps: Do not take the N first steps of the trajectory into account when computing the
+                                diffusion coefficient.
                                 Default: 0
-                                Note: only the default value can be used with "thermo" files.
-                                (since the average MSD on atoms is by default taken from the initial step)
 
             plot: activate plotting of MSD vs t
 
@@ -82,7 +81,7 @@ class HistMsdData(MsdData):
             **kwargs: optional arguments that will be passes to the Plotter object (see plotter/plotter.py)
         '''
 
-        timestep = self.read_timestep
+        self.timestep = self.read_timestep
         self.atom_type = atom_type
         logging.info('Will average MSD(T) on {} atoms'.format(self.atom_type))
 
@@ -90,11 +89,12 @@ class HistMsdData(MsdData):
 
         if not isinstance(discard_init_steps, int):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
+        self.discard_init_steps = discard_init_steps
 
         self.read_temperature
         self.get_atoms_for_diffusion()
         logging.info('Extracting trajectories...')
-        self.traj = self.read_positions[discard_init_steps:]
+        self.traj = self.read_positions
         self.nframes, self.natoms = np.shape(self.traj)[:2]
         # check if the positions are wrapped or unwrapped, with condition like dx larger than half the unit cell?
 #        for i, frame in enumerate(self.traj):
@@ -106,7 +106,7 @@ class HistMsdData(MsdData):
 #                    print('found non-Li diffusing atoms in frame {}!!!'.format(i))
         # From this test, positions seem to be unwrapped as at some points some atoms move outside the unit cell
     
-        self.time = timestep*np.arange(self.nframes)
+        self.time = self.timestep*np.arange(self.nframes)
         logging.info('Computing MSD from atomic positions...') 
         self.compute_msd_from_positions()
         logging.info('... done!')

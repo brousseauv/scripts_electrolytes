@@ -60,10 +60,9 @@ class LammpsMsdData(MsdData):
 
             input_temperature: Running temperature of the MD run. For "dump" filetype only.
 
-            discard_init_steps: Do not take the N first steps of the trajectory into account when computing MSD.
+            discard_init_steps: Do not take the N first steps of the trajectory into account when fitting the diffusion
+                                coefficient fromthe MSD.
                                 Default: 0
-                                Note: only the default value can be used with "thermo" files.
-                                (since the average MSD on atoms is by default taken from the initial step)
 
             plot: activate plotting of MSD vs t
 
@@ -101,21 +100,17 @@ class LammpsMsdData(MsdData):
                 plot_all_atoms = False
 
             if discard_init_steps != 0:
-                thermo_step = (self.time[1]-self.time[0])/self.timestep
-                discard_init_steps_new = int(np.floor(discard_init_steps/thermo_step))
-                print('Discarding the {} first MD steps from the MSD calculation, which correspond to the {} first entries in the thermo data.'.format(
+                self.thermo_step = (self.time[1]-self.time[0])/self.timestep
+                discard_init_steps_new = int(np.floor(discard_init_steps/self.thermo_step))
+                print('Discarding the {} first MD steps from the diffusion coefficient calculation, which correspond to the {} first entries in the thermo data.'.format(
                        discard_init_steps, discard_init_steps_new))
-                self.msd = self.msd[discard_init_steps_new:]
-                self.time = self.time[discard_init_steps_new:]
-                self.discard_init_steps = discard_init_steps
+                #self.msd = self.msd[discard_init_steps_new:]
+                #self.time = self.time[discard_init_steps_new:]
+                self.discard_init_steps = discard_init_steps_new
 
                 #  I shifted the time so the first used frame is t=0. That does not affect the slope, which is what I am looking for anyway
-                self.time -= self.time[0]
+                #self.time -= self.time[0]
                 self.nframes = len(self.msd)
-
-            # FIX ME: I don't think this is necessary. It will just shift the curve upwaards (i.e. start at non zero MSD
-#            if discard_init_steps != 0:
-#                raise ValueError('With "thermo" files, discard_init_steps should be 0 (default value)')
 
         elif self.filetype == 'dump' or self.filetype == 'dump-netcdf':
             if not timestep:
@@ -151,7 +146,7 @@ class LammpsMsdData(MsdData):
                 self.time, self.traj = read_traj_from_ncdump(self.fname, atomic_numbers)
 
             # Discard some initial timesteps
-            self.traj = self.traj[discard_init_steps:]
+            #self.traj = self.traj[discard_init_steps:]
             self.get_atoms_for_diffusion()
             self.nframes = len(self.traj)
             self.natoms = len(self.atom_indices)
@@ -161,9 +156,9 @@ class LammpsMsdData(MsdData):
 
             if self.filetype == 'dump':
                 self.time = timestep*np.arange(len(self.msd))
-            elif self.filetype == 'dump-netcdf':
-                self.time = self.time[discard_init_steps:]
-                self.time -= self.time[0]
+            #elif self.filetype == 'dump-netcdf':
+            #    self.time = self.time[discard_init_steps:]
+            #    self.time -= self.time[0]
 
             self.discard_init_steps = discard_init_steps
             # Just curious, does this work?!?

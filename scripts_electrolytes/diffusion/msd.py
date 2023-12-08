@@ -49,7 +49,8 @@ class MsdData:
         # Also, one could decide to elimitate some initial and final part of the trajectory when computing the fit
 
         # Assume units of angstrom^2/ps
-        self.slope = np.polyfit(self.time, self.msd, 1)
+        self.slope = np.polyfit(self.time[self.discard_init_steps:], self.msd[self.discard_init_steps:], 1)
+        print(len(self.time[self.discard_init_steps:]))
         # Assume 3D diffusion, for which the slope of MSD vs t is 6D
         self.diffusion = 1E-4*self.slope[0]/6
         # FIX ME: add standard deviation of diffusion coefficient fit
@@ -131,7 +132,7 @@ class MsdData:
             data[:] = self.time
 
             data = dts.createVariable(
-                    'runtime', 'd', ('one'))
+                    'total_runtime', 'd', ('one'))
             data.units = 'picosecond'
             data[:] = self.time[-1]
 
@@ -141,8 +142,12 @@ class MsdData:
             data[:] = self.timestep
 
             data = dts.createVariable(
-                    'discard_initial_steps', 'i',  ('one'))
-            data[:] = self.discard_init_steps
+                    'discard_initial_timesteps', 'd',  ('one'))
+            data.units = 'picosecond'
+            try:
+                data[:] = self.thermo_step * self.discard_init_steps
+            except AttributeError:
+                data[:] = self.timestep * self.discard_init_steps
 
             data = dts.createVariable(
                     'mean_squared_displacement', 'd',
@@ -171,9 +176,13 @@ class MsdData:
 
             f.write('Data source: {}\n'.format(self.data_source))
             f.write('Temperature: {:.0f}K\n'.format(self.temperature))
-            f.write('Runtime: {:.5f} ps\n'.format(self.time[-1]))
+            f.write('Total runtime: {:.5f} ps\n'.format(self.time[-1]))
             f.write('Timestep: {:.5f} ps\n'.format(self.timestep))
-            f.write('{} initial MD steps have been discarded\n'.format(self.discard_init_steps))
+            try:
+                f.write('Initial {} ps has been discarded\n'.format(self.discard_init_steps*self.thermo_step))
+            except AttributeError:
+                f.write('Initial {} ps has been discarded\n'.format(self.discard_init_steps*self.timestep))
+
             f.write('Diffusing atoms type: {}\n'.format(self.atom_type))
             f.write('MSD type: {}\n'.format(self.msd_type))
             f.write('Diffusion coefficient: {:.5e} cm^2/s\n'.format(self.diffusion))
