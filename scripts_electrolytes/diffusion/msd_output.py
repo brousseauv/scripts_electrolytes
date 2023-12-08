@@ -215,11 +215,6 @@ class MsdOutput:
         if not rootname:
             rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{discard_init_steps}'
 
-        try:
-            os.mkdir('OUT/')
-        except OSError:
-            pass
-
         self.nc_output = str('OUT/'+rootname+'.nc')
         self.output = str('OUT/'+rootname+'.dat')
 
