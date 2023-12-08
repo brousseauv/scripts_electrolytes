@@ -215,8 +215,8 @@ class MsdOutput:
         if not rootname:
             rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{discard_init_steps}'
 
-        self.nc_output = str('OUT/'+rootname+'.nc')
-        self.output = str('OUT/'+rootname+'.dat')
+        self.nc_output = str(rootname+'.nc')
+        self.output = str(rootname+'.dat')
 
         self.read_data(mode='msd')
 
