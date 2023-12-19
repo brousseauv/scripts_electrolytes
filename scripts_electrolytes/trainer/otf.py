@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 import subprocess as subp
 from ..interfaces.abinit_interface import poscar_to_abivars, load_abivars, input_from_dict
 from ..interfaces.slurm_interface import SlurmWatcher
@@ -69,110 +70,139 @@ class OtfMtpTrainer:
         self.submit = submit
 
         self.restart_iterstep = restart_iterstep
-        if not self.restart_iterstep:
-            self.initiate_training()
+#        if not self.restart_iterstep:
+#            self.initiate_training()
         self.set_abivars(abi_input)
         
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
-    def initiate_training(self):
-
-        self.owd = os.getcwd()
-        os.makedirs('0', exist_ok=True)
-        os.system('cp {} 0/current.mtp'.format(self.init_mtp))
-        os.system('cp {} 0/train.cfg'.format(self.init_train))
-        self.iterstep = 1
+#    def initiate_training(self):
+#
+#        self.owd = os.getcwd()
+#        os.makedirs('0', exist_ok=True)
+#        os.system('cp {} 0/current.mtp'.format(self.init_mtp))
+#        os.system('cp {} 0/train.cfg'.format(self.init_train))
+#        self.iterstep = 1
 
 
     def set_abivars(self, fname):
         self.abivars, self.abipseudos = load_abivars(fname)
 
 
-    def train_from_lammpsmd(self, lammps_path=None, md_nsteps=10000, lammps_input=None, lammps_struct=None, mlip_ini=None, temp=None,
-                            atomic_species=None, relaunch=True):
+    def set_mlip_flags(self, fname):
+        self.mlip_flags = json.load(open(fname))
 
-        self.set_variables(lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species, relaunch)
-        finished = False
+#    def train_from_lammpsmd(self, lammps_path=None, md_nsteps=10000, lammps_input=None, lammps_struct=None, mlip_ini=None, temp=None,
+#                            atomic_species=None, relaunch=True):
+#
+#        self.set_variables(lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species, relaunch)
+#        finished = False
+#
+#        if self.restart_iterstep:
+#            self.iterstep = self.restart_iterstep
+#            self.owd = os.getcwd()
+#
+##        while self.iterstep<8: # will be while fiished=False, with a condition on the number of preselected configurations
+#        while finished == False:  
+#
+#            logging.info('{}: Starting OTF learning step {}'.format(when_is_now(), self.iterstep))
+#            iterdir = '{}'.format(self.iterstep)
+#            os.makedirs(iterdir, exist_ok=True) 
+#            self.iterdir = os.path.abspath(iterdir)
+#            os.chdir(self.iterdir)
+#
+#
+#            self.run(['echo "\nOTF learning step {}">>iter_output.txt'.format(self.iterstep)])
+#            # Compute active learning state
+#            self.compute_als()
+#            # LAMMPS MD run to preselect extrapolative configurations
+#            self.mdrun_select()
+#            # Check if configurations were preselected during the MD run
+#            npreselect = self.check_configs('preselected.cfg')
+#            if npreselect>0:
+#                # Select configurations for DFT calculations
+#                self.select_configs()
+#                nselect = self.check_configs('add_to_train.cfg')
+#                # Evaluate selected configurations with DFT
+#                self.launch_dft(nselect)
+#                # Check job outputs and relaunch if necessary/requested
+#                dft_error = self.check_dft_output(nselect)
+#                if dft_error:
+#                    self.relaunch_dft(nselect)
+#
+#                # Collect energy/forces/stresses from DFT data
+#                self.collect_dft()
+#                # Retrain MTP potential
+#                self.train_model()
+#
+#                self.iterstep += 1
+#                os.chdir(self.owd)
+#
+#            else:
+#                finished = True
+#                self.run('cp prev.mtp {}/final.mtp'.format(self.owd))
+#                self.run('cp ../{}/train.cfg {}/final.cfg'.format(self.iterstep-1, self.owd))
+#                self.run('echo "  No extrapolative configuration were preselected.">>iter_output.txt')
+#                os.chdir(self.owd)
+#
+#        logging.info("{}: OTF learning scheme completed after {} steps".format(when_is_now(), self.iterstep))
 
-        if self.restart_iterstep:
-            self.iterstep = self.restart_iterstep
-            self.owd = os.getcwd()
+    def preselect_configs(self):
+        ''' Calls all tasks to perform one learning-on-the-fly cycle '''
 
-#        while self.iterstep<8: # will be while fiished=False, with a condition on the number of preselected configurations
-        while finished == False:  
+        #self.run(['echo "\nOTF learning step {}">>iter_output.txt'.format(self.iterstep)])
 
-            logging.info('{}: Starting OTF learning step {}'.format(when_is_now(), self.iterstep))
-            iterdir = '{}'.format(self.iterstep)
-            os.makedirs(iterdir, exist_ok=True) 
-            self.iterdir = os.path.abspath(iterdir)
-            os.chdir(self.iterdir)
+        # LAMMPS MD run to preselect extrapolative configurations
+        self.mdrun_select()
+        # Check if configurations were preselected during the MD run
+        npreselect = self.check_configs(f'{self.preselect_fname}')
 
+        return npreselect
 
-            self.run(['echo "\nOTF learning step {}">>iter_output.txt'.format(self.iterstep)])
-            # Compute active learning state
-            self.compute_als()
-            # LAMMPS MD run to preselect extrapolative configurations
-            self.mdrun_select()
-            # Check if configurations were preselected during the MD run
-            npreselect = self.check_configs('preselected.cfg')
-            if npreselect>0:
-                # Select configurations for DFT calculations
-                self.select_configs()
-                nselect = self.check_configs('add_to_train.cfg')
-                # Evaluate selected configurations with DFT
-                self.launch_dft(nselect)
-#                if self.submit:
-#                    self.watch_jobs('iter{}_config'.format(self.iterstep), msg='Watching DFT jobs...')
-                # Check job outputs and relaunch if necessary/requested
-                dft_error = self.check_dft_output(nselect)
-                if dft_error:
-                    self.relaunch_dft(nselect)
+    def run_otf_iteration(self):
 
-                # Collect energy/forces/stresses from DFT data
-                self.collect_dft()
-                # Retrain MTP potential
-                self.train_model()
-#                if self.submit:
-#                    self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
+        # Select configurations for DFT calculations
+        self.select_configs()
+        nselect = self.check_configs('add_to_train.cfg')
+        # Evaluate selected configurations with DFT
+        self.launch_dft(nselect)
+        # Check job outputs and relaunch if necessary/requested
+        dft_error = self.check_dft_output(nselect)
+        if dft_error:
+            self.relaunch_dft(nselect)
 
-                self.iterstep += 1
-                os.chdir(self.owd)
-
-            else:
-                finished = True
-                self.run('cp prev.mtp {}/final.mtp'.format(self.owd))
-                self.run('cp ../{}/train.cfg {}/final.cfg'.format(self.iterstep-1, self.owd))
-                self.run('echo "  No extrapolative configuration were preselected.">>iter_output.txt')
-                os.chdir(self.owd)
-
-        logging.info("{}: OTF learning scheme completed after {} steps".format(when_is_now(), self.iterstep))
-
-    def compute_als(self):
-        logging.info('    {}: Creating active learning state...'.format(when_is_now()))
-        self.run('echo "  Active set construction...">>iter_output.txt')
-        command = '{} calc-grade ../{}/current.mtp ../{}/train.cfg ../{}/train.cfg out.cfg --als-filename=state.als>>iter_output.txt'.format(
-                  self.mtp, self.iterstep-1, self.iterstep-1, self.iterstep-1)
-        self.run(command)
-        self.run('rm out.cfg')
+        # Collect energy/forces/stresses from DFT data
+        self.collect_dft()
+        # Retrain MTP potential
+        self.train_model()
 
 
-    def mdrun_select(self):
-        logging.info('    {}: Running MD trajectory...'.format(when_is_now()))
-        self.run('echo "  Running MD trajectory...">>iter_output.txt')
-        self.run(['cp ../{}/current.mtp prev.mtp'.format(self.iterstep-1)])
-        self.run('touch preselected.cfg')
-        command = '{} -v SEED 1 -v T {} -v NSTEP {} -v MLIP_INI {} -v STRUCT {} -log none -in {} &>lammps.log'.format(
-                self.lammps, self.temperature, self.mdsteps, self.mlip_ini, self.lammps_struct, self.lammps_input)
-        self.run(command)
+#    def compute_als(self):
+#        logging.info('    {}: Creating active learning state...'.format(when_is_now()))
+#        self.run('echo "  Active set construction...">>iter_output.txt')
+#        command = '{} calc-grade ../{}/current.mtp ../{}/train.cfg ../{}/train.cfg out.cfg --als-filename=state.als>>iter_output.txt'.format(
+#                  self.mtp, self.iterstep-1, self.iterstep-1, self.iterstep-1)
+#        self.run(command)
+#        self.run('rm out.cfg')
 
 
-    def select_configs(self):
-        self.run('echo "  Selecting configurations...">>iter_output.txt')
-        command = '{} select-add ../{}/current.mtp ../{}/train.cfg preselected.cfg add_to_train.cfg --als-filename=state.als>>iter_output.txt'.format(self.mtp, self.iterstep-1, self.iterstep-1)
-        self.run(command)
-        self.run('rm selected.cfg')
-        self.run('rm state.als')
+#    def mdrun_select(self):
+#        logging.info('    {}: Running MD trajectory...'.format(when_is_now()))
+#        self.run('echo "  Running MD trajectory...">>iter_output.txt')
+#        self.run(['cp ../{}/current.mtp prev.mtp'.format(self.iterstep-1)])
+#        self.run('touch preselected.cfg')
+#        command = '{} -v SEED 1 -v T {} -v NSTEP {} -v MLIP_INI {} -v STRUCT {} -log none -in {} &>lammps.log'.format(
+#                self.lammps, self.temperature, self.mdsteps, self.mlip_ini, self.lammps_struct, self.lammps_input)
+#        self.run(command)
+
+
+#    def select_configs(self):
+#        self.run('echo "  Selecting configurations...">>iter_output.txt')
+#        command = '{} select-add ../{}/current.mtp ../{}/train.cfg preselected.cfg add_to_train.cfg --als-filename=state.als>>iter_output.txt'.format(self.mtp, self.iterstep-1, self.iterstep-1)
+#        self.run(command)
+#        self.run('rm selected.cfg')
+#        self.run('rm state.als')
 
 
     def check_configs(self, fname):
@@ -187,8 +217,9 @@ class OtfMtpTrainer:
         os.chdir(self.calcdir)
 
         self.run('echo "  Processing POSCAR files...">>../iter_output.txt')
-        command = '{} convert-cfg ../add_to_train.cfg POSCAR --output-format=vasp-poscar>>../iter_output.txt'.format(self.mtp)
-        # UNCOMMENT WHEN READY
+        command = self.set_convert_poscar_command()
+#        command = '{} convert-cfg ../add_to_train.cfg POSCAR --output-format=vasp-poscar>>../iter_output.txt'.format(self.mtp)
+
         self.run(command)
         
         if njobs == 1:
@@ -245,11 +276,13 @@ class OtfMtpTrainer:
         logging.info('    {}: Retraining MTP potential...'.format(when_is_now()))
         self.run('echo "  Training potential from updated training set. This may take some time.">>iter_output.txt')
 
-        if self.valid_db:
-            traincommand = "{} train prev.mtp train.cfg --trained-pot-name=current.mtp --valid-cfgs={} --update-mindist".format(self.mtp, self.valid_db)
-        else:
-            traincommand = "{} train prev.mtp train.cfg --trained-pot-name=current.mtp --update-mindist".format(self.mtp)
-
+        traincommand = self.set_traincommand()
+        if self.mlip_flags:
+            trainflags = ' '.join([f'--{key}={val}' for key, val in self.mlip_flags.items()])
+            traincommand = ' '.join([traincommand, trainflags])
+        # FIX ME: DELETE THIS ONCE TESTS ARE FINISHED
+        logging.info(f' current training command:')
+        logging.info(f'     {traincommand}')
 
         if self.submit:
             if self.train_job_args:
@@ -257,19 +290,8 @@ class OtfMtpTrainer:
             else:
                 train_job_args = ' --job-name=iter{}_train'.format(self.iterstep)
 
-            # copy the submission file to current dir
-            # and replace a tagged keyword with the current string
-            # FIX ME: this is a little sketchy but for now it works. 
-            # Could be improved though
-            # Perhaps keep only the header, i.e. the .sh script up to the mlp train command ?
             self.run('cp {} train.sh'.format(self.train_jobscript))
-    #        with open('train.sh', 'r+') as f:
-    #            content = f.read()
-    #            content = content.replace('mytraincommand', '{}'.format(traincommand))
-    #            f.seek(0)
-    #            f.write(content)
 
-            # version 2: append command after header
             with open('train.sh', 'a') as f:
                 f.write('srun {} >&train_$SLURM_JOB_ID.out'.format(traincommand))
 
@@ -282,16 +304,21 @@ class OtfMtpTrainer:
         if self.submit:
             self.watch_jobs('iter{}_train'.format(self.iterstep), msg='Watching training job...')
 
+        logging.info('    {}: ... training completed\n\n'.format(when_is_now()))
+        self.run('echo "  Training completed\n\n">>iter_output.txt')
 
-    def fix_poscar(self, fname):
-        # fix the POSCAR files produced by MTP as they do not include atomic species information
-        # According to the VASP wiki, this line should always be the 6th line, as the 5 first are mandatory
-        with open(fname, 'r+') as f:
-            content = f.readlines()
-            string = ' '+' '.join(self.atomic_species)+'\n'
-            content.insert(5, string)
-            f.seek(0)
-            f.writelines(content)
+        if self.valid_db:
+            self.compute_validation_errors()
+
+#    def fix_poscar(self, fname):
+#        # fix the POSCAR files produced by MTP as they do not include atomic species information
+#        # According to the VASP wiki, this line should always be the 6th line, as the 5 first are mandatory
+#        with open(fname, 'r+') as f:
+#            content = f.readlines()
+#            string = ' '+' '.join(self.atomic_species)+'\n'
+#            content.insert(5, string)
+#            f.seek(0)
+#            f.writelines(content)
 
 
     def check_dft_output(self, njobs):
@@ -373,6 +400,7 @@ class OtfMtpTrainer:
                         self.relaunch_dft_job(j, arg)
                     
                     if err == 'memory':
+                        raise NotImplementedError('Automatic memory increase not implemented. Do it or fix it by hand.')
                         try:
                             output = self.check_process("grep -- ' -m ' {}".format(self.dft_jobscript))
                             time = str(output.stdout).split(' -t ')[1].split('\\n')[0]
@@ -429,7 +457,7 @@ class OtfMtpTrainer:
         return string
 
 
-    def set_variables(self,lammps_path, md_nsteps, lammps_input, lammps_struct, mlip_ini, temp, atomic_species, relaunch):
+    def set_lammps_variables(self,lammps_path, md_nsteps, lammps_input, lammps_struct, temp, atomic_species, relaunch):
         if not lammps_path:
             raise ValueError('Must provide path to LAMMPS executable as lammps_path')
         else:
@@ -449,11 +477,6 @@ class OtfMtpTrainer:
             raise ValueError('Must provide MD temperature as temp')
         else:
             self.temperature = temp
-
-        if not mlip_ini:
-            raise ValueError('Must provide mlip.ini file as mlip_ini')
-        else:
-            self.mlip_ini = os.path.abspath(mlip_ini)
 
         if not atomic_species:
             raise ValueError("Must provide the list of atomic species using chemical symbols, in the same order as the MTP data as atomic_species")
