@@ -48,8 +48,8 @@ class OtfMtp2Trainer(OtfMtpTrainer):
             self.iterstep = self.restart_iterstep
             self.owd = os.getcwd()
 
-        while self.iterstep<5: # will be while fiished=False, with a condition on the number of preselected configurations
-#        while finished == False:  
+#        while self.iterstep<5: # will be while fiished=False, with a condition on the number of preselected configurations
+        while finished == False:  
 
             logging.info('{}: Starting OTF learning step {}'.format(when_is_now(), self.iterstep))
             iterdir = '{}'.format(self.iterstep)
@@ -115,15 +115,15 @@ class OtfMtp2Trainer(OtfMtpTrainer):
         command = '{} convert-cfg ../add_to_train.cfg POSCAR --output-format=vasp-poscar>>../iter_output.txt'.format(self.mtp)
         return command
 
-     def fix_poscar(self, fname):
-         # fix the POSCAR files produced by MTP as they do not include atomic species information
-         # According to the VASP wiki, this line should always be the 6th line, as the 5 first are mandatory
-         with open(fname, 'r+') as f:
-             content = f.readlines()
-             string = ' '+' '.join(self.atomic_species)+'\n'
-             content.insert(5, string)
-             f.seek(0)
-             f.writelines(content)
+    def fix_poscar(self, fname):
+        # fix the POSCAR files produced by MTP as they do not include atomic species information
+        # According to the VASP wiki, this line should always be the 6th line, as the 5 first are mandatory
+        with open(fname, 'r+') as f:
+            content = f.readlines()
+            string = ' '+' '.join(self.atomic_species)+'\n'
+            content.insert(5, string)
+            f.seek(0)
+            f.writelines(content)
 
     def compute_validation_errors(self):
         return

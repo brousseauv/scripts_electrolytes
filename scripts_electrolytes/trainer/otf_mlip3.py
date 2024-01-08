@@ -53,8 +53,8 @@ class OtfMtp3Trainer(OtfMtpTrainer):
             self.iterstep = self.restart_iterstep
             self.owd = os.getcwd()
 
-        while self.iterstep<4: # will be while fiished=False, with a condition on the number of preselected configurations
-#        while finished == False:  
+#        while self.iterstep<4: # will be while fiished=False, with a condition on the number of preselected configurations
+        while finished == False:  
 
             logging.info('{}: Starting OTF learning step {}'.format(when_is_now(), self.iterstep))
             iterdir = '{}'.format(self.iterstep)
@@ -97,7 +97,7 @@ class OtfMtp3Trainer(OtfMtpTrainer):
         self.run('echo "  Running MD trajectory...">>iter_output.txt')
         self.run(['cp ../{}/current.almtp prev.almtp'.format(self.iterstep-1)])
         self.run(f'touch {self.preselect_fname}')
-        command = '{} -v SEED 1 -v T {} -v NSTEP {} -v MLIPPATH {} -v STRUCT {} -log none -in {} &>lammps.log'.format(
+        command = 'srun {} -v SEED 1 -v T {} -v NSTEP {} -v MLIPPATH {} -v STRUCT {} -log none -in {} &>lammps.log'.format(
                 self.lammps, self.temperature, self.mdsteps, self.mlip_path, self.lammps_struct, self.lammps_input)
         self.run(command)
 
@@ -127,7 +127,7 @@ class OtfMtp3Trainer(OtfMtpTrainer):
         return
 
     def compute_validation_errors(self):
-        command = f'{self.mtp} check_errors current.almtp {self.valid_db} --report_to="train_errors_cfg.log"'
+        command = f'{self.mtp} check_errors current.almtp {self.valid_db} --report_to="valid_errors.log"'
         self.run(command)
         return
 #

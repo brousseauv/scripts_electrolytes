@@ -169,6 +169,7 @@ class OtfMtpTrainer:
         self.launch_dft(nselect)
         # Check job outputs and relaunch if necessary/requested
         dft_error = self.check_dft_output(nselect)
+        # FIX ME: UNCOMMENT AFTER TESTING
         if dft_error:
             self.relaunch_dft(nselect)
 
@@ -369,7 +370,7 @@ class OtfMtpTrainer:
     def relaunch_dft(self, njobs):
 
         os.chdir(self.calcdir) # launching must be done from calcdir
-        if not relaunch:
+        if not self.relaunch:
             raise Exception('Some exceptions occured in iterstep {} for configs {}: {}.Stopping OTF procedure.'.format(
                             self.iterstep, self.failed_calc_index, self.errormsg))
 
