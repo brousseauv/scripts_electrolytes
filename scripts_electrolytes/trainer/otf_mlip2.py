@@ -17,14 +17,14 @@ class OtfMtp2Trainer(OtfMtpTrainer):
     def __init__(self, mtp_path=None, init_mtp=None, init_train_db=None, abi_input=None,
                  dft_job_args=None, dft_job_script=None, username=None, train_job_args=None,
                  train_job_script=None, valid_db=None, submit=True, abicommand=None,
-                 restart_iterstep=None, mlip_flags=None, mlip_ini=None):
+                 restart_iterstep=None, mlip_flags=None, mlip_ini=None, stop_at_max_nsteps=False):
 
         super(OtfMtp2Trainer, self).__init__(mtp_path=mtp_path, init_mtp=init_mtp, init_train_db=init_train_db,
                                              abi_input=abi_input, dft_job_args=dft_job_args,
                                              dft_job_script=dft_job_script, username=username,
                                              train_job_args=train_job_args, train_job_script=train_job_script,
                                              valid_db=valid_db, submit=submit, abicommand=abicommand,
-                                             restart_iterstep=restart_iterstep)
+                                             restart_iterstep=restart_iterstep, stop_at_max_nsteps=stop_at_max_nsteps)
 
         self.preselect_fname = 'preselected.cfg'
 
@@ -71,7 +71,16 @@ class OtfMtp2Trainer(OtfMtpTrainer):
             if npreselect>0:
                 self.run_otf_iteration()
                 self.iterstep += 1
-                os.chdir(self.owd)
+
+                if self.stop_at_max_nsteps and self.max_nsteps_reached:
+                    # In stop_at_max_nsteps mode, use the last trained potential from the 1st completed MD run
+                    finished = True
+                    self.run('cp current.mtp {}/final.mtp'.format(self.owd))
+                    self.run('cp train.cfg {}/final.cfg'.format(self.owd))
+                    self.run('echo "  Extrapolative confugurations were preselected but max MD steps was reached.\n  Stopping per user request.">>iter_output.txt')
+                    os.chdir(self.owd)
+                else:
+                    os.chdir(self.owd)
 
             else:
                 finished = True
@@ -102,6 +111,15 @@ class OtfMtp2Trainer(OtfMtpTrainer):
         command = '{} -v SEED 1 -v T {} -v NSTEP {} -v MLIP_INI {} -v STRUCT {} -log none -in {} &>lammps.log'.format(
                 self.lammps, self.temperature, self.mdsteps, self.mlip_ini, self.lammps_struct, self.lammps_input)
         self.run(command)
+
+        # Check if nsteps was reached
+        out = self.check_process(f'grep "Breaking threshold exceeded" lammps.log')
+        if out.returncode == 0:
+            self.max_nsteps_reached = False
+            self.run('echo "        Breaking threshold exceeded">>iter_output.txt')
+        else:
+            self.max_nsteps_reached = True
+            self.run('echo "        Max MD steps was reached without exceeding beaking threshold">>iter_output.txt')
 
 
     def select_configs(self):

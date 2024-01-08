@@ -48,6 +48,10 @@ class OtfMtpTrainer:
                 restart_iterstep: Continue OTF training at iterstep N (which was not completed on previous run)
                                   default: None (start from init_mtp and init_train_db)
 
+                stop_at_max_nsteps: allows to stop the OTF procedure when the MD runs stops encouning configurations with gamma>gamma_break
+                                    even if there are configurations with gamma>gamma_select
+                                    intended for initial aggregation of configurations from potentials trained from a small number of configs
+                                    Default:False (stop OTF procedure when no configurations are preselected)
         '''
 
         if not mtp_path:
@@ -106,6 +110,7 @@ class OtfMtpTrainer:
         self.submit = submit
 
         self.restart_iterstep = restart_iterstep
+        self.stop_at_max_nsteps = stop_at_max_nsteps
 #        if not self.restart_iterstep:
 #            self.initiate_training()
         self.set_abivars(abi_input)
