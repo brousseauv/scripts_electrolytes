@@ -5,6 +5,15 @@ from ..utils.time import when_is_now
 from .otf import OtfMtpTrainer
 
 class OtfMtp3Trainer(OtfMtpTrainer):
+    '''
+        mlip_flags: json file containing custom training variables for MTP training
+
+        training_mode: whether the MTP potential is trained on the full configuration ('cfg') on or atomic
+                       neighborhoods ('nbh') 
+                       default: 'cfg' (only mode supported)
+
+        See OtfMtpTrainer for description of other input variables
+    '''
 
     def __init__(self, mtp_path=None, init_mtp=None, init_train_db=None, abi_input=None,
                  dft_job_args=None, dft_job_script=None, username=None, train_job_args=None,

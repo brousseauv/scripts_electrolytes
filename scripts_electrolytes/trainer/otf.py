@@ -12,7 +12,43 @@ class OtfMtpTrainer:
     def __init__(self, mtp_path=None, init_mtp=None, init_train_db=None, abi_input=None,
                  dft_job_args=None, dft_job_script=None, username=None, train_job_args=None,
                  train_job_script=None, valid_db=None, submit=True, abicommand=None,
-                 restart_iterstep=None):
+                 restart_iterstep=None, stop_at_max_nsteps=False):
+
+        '''
+            Base class to train MTP models on-the-fly
+
+            Input:
+                mtp_path: path to the mlp executable
+
+                init_mtp: initial MTP potential (can be empty if starting from scratch)
+
+                init_train_db: path to the training database for the initial MTP model
+
+                abi_input: json file containing Abinit variables
+
+                dft_job_args: list of strings containing Slurm commands to be overriden compared to the dft_job_script
+                              default=None
+
+                dft_job_script: sample Slurm submission script (header) WITHOUT main command line for DFT jobs
+
+                username: cluster username for job monitoring, when using submit=True option
+
+                train_job_args: list of strings containing Slurm commands to be overriden compared to the train_job_script
+                                default=None
+
+                train_job_script: sample Slurm submission script (header) WITHOUT main command line for MTP training jobs
+
+                valid_db: path to the validation database (optional)
+
+                submit: whether so submit DFT and training jobs to the SLURM queue
+                        Default: True
+
+                abicommand: custom command to run Abinit jobs (if it differs from srun $abinit $inputfile>&$log)
+
+                restart_iterstep: Continue OTF training at iterstep N (which was not completed on previous run)
+                                  default: None (start from init_mtp and init_train_db)
+
+        '''
 
         if not mtp_path:
             raise ValueError('Must provide path to MLP executable in mlp_path')
@@ -20,7 +56,7 @@ class OtfMtpTrainer:
             self.mtp = mtp_path
 
         if not init_mtp:
-            raise ValueError('Must provide initial mpt.pot in init_mtp')
+            raise ValueError('Must provide initial mtp.pot or mtp.almtp in init_mtp')
         else:
             self.init_mtp = init_mtp
 

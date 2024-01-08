@@ -5,7 +5,15 @@ from ..utils.time import when_is_now
 from .otf import OtfMtpTrainer
 
 class OtfMtp2Trainer(OtfMtpTrainer):
+    '''
+        mlip_flags: json file containing custom training variables for MTP training
 
+        mlip_ini: path to the mlip.ini file containing info about the path to the initial potential and 
+                  extrapolation selection flags
+
+        See OtfMtpTrainer for description of other input variables
+    '''
+    
     def __init__(self, mtp_path=None, init_mtp=None, init_train_db=None, abi_input=None,
                  dft_job_args=None, dft_job_script=None, username=None, train_job_args=None,
                  train_job_script=None, valid_db=None, submit=True, abicommand=None,
