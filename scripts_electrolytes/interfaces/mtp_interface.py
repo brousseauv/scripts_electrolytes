@@ -174,6 +174,7 @@ def read_mv_grade(fname, verbose=False):
     data['argmax'] = np.argmax(output)
     data['argmin'] = np.argmin(output)
     data['mean'] = np.mean(output)
+    data['median'] = np.median(output)
     data['stdev'] = np.std(output)
 
     if verbose:
@@ -182,6 +183,7 @@ def read_mv_grade(fname, verbose=False):
         print('    gamma min = {:.2f} (step {})'.format(data['min'], data['argmin']))
         print('    gamma mean = {:.2f}'.format(data['mean']))
         print('    gamma stdev = {:.2f}'.format(data['stdev']))
+        print('    gamma median = {:.2f}'.format(data['median']))
 
     return data
 
