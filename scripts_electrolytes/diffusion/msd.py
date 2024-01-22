@@ -50,7 +50,7 @@ class MsdData:
 
         # Assume units of angstrom^2/ps
         self.slope = np.polyfit(self.time[self.discard_init_steps:], self.msd[self.discard_init_steps:], 1)
-        print(len(self.time[self.discard_init_steps:]))
+
         # Assume 3D diffusion, for which the slope of MSD vs t is 6D
         self.diffusion = 1E-4*self.slope[0]/6
         # FIX ME: add standard deviation of diffusion coefficient fit

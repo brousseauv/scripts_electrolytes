@@ -163,7 +163,7 @@ class MsdOutput:
         # Assume 3D diffusion, for which the slope of MSD vs t is 6D
         coefficient = 1E-4*slope[0]/6
 
-        return coefficient
+        return coefficient, slope
 
 
     def plot_diffusion_from_slices(self, **kwargs):
@@ -198,7 +198,7 @@ class MsdOutput:
         myplot.show_figure()
 
 
-    def recompute_diffusion_coefficient(self, discard_init_steps=0, rootname=None):
+    def recompute_diffusion_coefficient(self, discard_init_steps=0, rootname=None, plot=False, fill=True, **kwargs):
         ''' Recompute diffusion coefficient with a new value for discard_init_steps, i.e. 
             change the portion of the MD run used for slope calculation. 
 
@@ -206,6 +206,12 @@ class MsdOutput:
             discard_init_steps: number of timesteps to discard from slope evaluation
                                 default=0
             rootname: rootname for new output files (.dat and .nc formats)
+
+            plot: should the new MSD(t) and diffusion slope be plotted
+                  default: False
+
+            fill: should the discarded portion of the MSD be shaded
+                  default: True
         '''
 
         if not isinstance(discard_init_steps, int):
@@ -220,9 +226,43 @@ class MsdOutput:
 
         self.read_data(mode='msd')
 
-        self.coeff = self.compute_diffusion_coefficient(self.time[discard_init_steps:], self.msd[discard_init_steps:])
+        self.coeff, self.slope = self.compute_diffusion_coefficient(self.time[discard_init_steps:], self.msd[discard_init_steps:])
         self.write_data()        
 
+        if plot:
+            self.plot_diffusion_coefficient(fill, **kwargs)
+
+
+    def plot_diffusion_coefficient(self, fill, **kwargs):
+
+        myplot = MsdPlotter(**kwargs)
+        myplot.set_line2d_params(defname='diffusion.png', **kwargs)
+
+        y = self.slope[0]*self.time + self.slope[1]
+
+        if myplot.linecolor:
+            color = myplot.linecolor
+        else:
+            color = bright['red']
+
+        myplot.ax.plot(self.time, self.msd, color=color, linewidth=1.0, linestyle='solid')
+        myplot.ax.plot(self.time, y, color=color, linewidth=myplot.linewidth, linestyle='dashed')
+
+        if self.discard_init_steps != 0:
+            myplot.ax.axvline(self.time[self.discard_init_steps], color='black', linestyle='dashed', linewidth=0.5)
+            ylims = myplot.ax.get_ylim()
+            xlims = myplot.ax.get_xlim()
+            if fill:
+                myplot.ax.fill_between(np.linspace(0, self.time[self.discard_init_steps], 10), ylims[0], ylims[1], color='gray', alpha=0.4, zorder=-1)
+
+        myplot.set_labels()
+        try:
+            myplot.add_title()
+        except:
+            pass
+
+        myplot.save_figure()
+        myplot.show_figure()
 
     def write_data(self):
 
