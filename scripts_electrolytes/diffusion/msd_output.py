@@ -159,11 +159,12 @@ class MsdOutput:
     def compute_diffusion_coefficient(self, x, y):
 
         # Assume units of angstrom^2/ps
-        slope = np.polyfit(x, y, 1)
+        slope, cov = np.polyfit(x, y, 1, cov=True)
         # Assume 3D diffusion, for which the slope of MSD vs t is 6D
         coefficient = 1E-4*slope[0]/6
+        std = 1E-4*np.sqrt(np.diag(cov)[0])/6
 
-        return coefficient, slope
+        return coefficient, slope, std
 
 
     def plot_diffusion_from_slices(self, **kwargs):
@@ -198,7 +199,7 @@ class MsdOutput:
         myplot.show_figure()
 
 
-    def recompute_diffusion_coefficient(self, discard_init_steps=0, rootname=None, plot=False, fill=True, **kwargs):
+    def recompute_diffusion_coefficient(self, discard_init_steps=0, rootname=None, plot=False, fill=True, verbose=True, **kwargs):
         ''' Recompute diffusion coefficient with a new value for discard_init_steps, i.e. 
             change the portion of the MD run used for slope calculation. 
 
@@ -212,6 +213,9 @@ class MsdOutput:
 
             fill: should the discarded portion of the MSD be shaded
                   default: True
+
+            verbose: should the new diffusion coefficient be printed to the screen
+                     default: True
         '''
 
         if not isinstance(discard_init_steps, int):
@@ -226,7 +230,10 @@ class MsdOutput:
 
         self.read_data(mode='msd')
 
-        self.coeff, self.slope = self.compute_diffusion_coefficient(self.time[discard_init_steps:], self.msd[discard_init_steps:])
+        self.coeff, self.slope, self.coeff_std = self.compute_diffusion_coefficient(self.time[discard_init_steps:], self.msd[discard_init_steps:])
+
+        if verbose:
+            print(f'D={self.coeff:.3e}+-{self.coeff_std:.3e} cm^2/s')
         self.write_data()        
 
         if plot:
