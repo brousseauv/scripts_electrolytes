@@ -218,15 +218,16 @@ class MsdOutput:
                      default: True
         '''
 
-        if not isinstance(discard_init_steps, int):
+        if not isinstance(discard_init_steps, int) and not isinstance(discard_init_steps, np.integer):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
         self.discard_init_steps = discard_init_steps
 
         if not rootname:
             rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{discard_init_steps}'
+        rootdir = os.path.dirname(self.fname)
 
-        self.nc_output = str(rootname+'.nc')
-        self.output = str(rootname+'.dat')
+        self.nc_output = os.path.join(rootdir, str(rootname+'.nc'))
+        self.output = os.path.join(rootdir, str(rootname+'.dat'))
 
         self.read_data(mode='msd')
 
