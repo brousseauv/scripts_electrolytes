@@ -52,8 +52,8 @@ class HistMsdData(MsdData):
         self.msd_atoms = self.compute_atoms_msd(displacements)
         self.msd = np.mean(self.msd_atoms, axis=1)
 
-    def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', discard_init_steps=0, plot=False, plot_errors=False, 
-                                      plot_verbose=True, plot_all_atoms=False, **kwargs):
+    def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', discard_init_steps=0, discard_init_time_ps=None,
+                                      plot=False, plot_errors=False, plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
             atom_type: for which atoms the MSD must be computed. Currently, possible options 
@@ -67,6 +67,9 @@ class HistMsdData(MsdData):
             discard_init_steps: Do not take the N first steps of the trajectory into account when computing the
                                 diffusion coefficient.
                                 Default: 0
+
+            discard_init_time_ps: time interval (in ps) to discard from slope evaluation
+                                default=None (not considered)
 
             plot: activate plotting of MSD vs t
 
@@ -89,7 +92,6 @@ class HistMsdData(MsdData):
 
         if not isinstance(discard_init_steps, int):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
-        self.discard_init_steps = discard_init_steps
 
         self.read_temperature
         self.get_atoms_for_diffusion()
@@ -107,6 +109,12 @@ class HistMsdData(MsdData):
         # From this test, positions seem to be unwrapped as at some points some atoms move outside the unit cell
     
         self.time = self.timestep*np.arange(self.nframes)
+
+        if discard_init_time_ps:
+            self.discard_init_steps = np.asarray([self.time>=discard_init_time_ps]).nonzero()[1][0]
+        else:
+            self.discard_init_steps = discard_init_steps
+
         logging.info('Computing MSD from atomic positions...') 
         self.compute_msd_from_positions()
         logging.info('... done!')

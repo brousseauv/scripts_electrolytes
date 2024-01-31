@@ -199,13 +199,18 @@ class MsdOutput:
         myplot.show_figure()
 
 
-    def recompute_diffusion_coefficient(self, discard_init_steps=0, rootname=None, plot=False, fill=True, verbose=True, **kwargs):
+    def recompute_diffusion_coefficient(self, discard_init_steps=0, discard_init_time_ps=None, rootname=None,
+                                        plot=False, fill=True, verbose=True, **kwargs):
         ''' Recompute diffusion coefficient with a new value for discard_init_steps, i.e. 
             change the portion of the MD run used for slope calculation. 
 
             Input: 
             discard_init_steps: number of timesteps to discard from slope evaluation
                                 default=0
+
+            discard_init_time_ps: time interval (in ps) to discard from slope evaluation
+                                default=None (not considered)
+
             rootname: rootname for new output files (.dat and .nc formats)
 
             plot: should the new MSD(t) and diffusion slope be plotted
@@ -220,7 +225,14 @@ class MsdOutput:
 
         if not isinstance(discard_init_steps, int) and not isinstance(discard_init_steps, np.integer):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
-        self.discard_init_steps = discard_init_steps
+
+        self.read_data(mode='msd')
+
+        # Discard timesteps ot time interval
+        if discard_init_time_ps:
+            self.discard_init_steps = np.asarray([self.time>=discard_init_time_ps]).nonzero()[1][0]
+        else:
+            self.discard_init_steps = discard_init_steps
 
         if not rootname:
             rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{discard_init_steps}'
@@ -228,8 +240,6 @@ class MsdOutput:
 
         self.nc_output = os.path.join(rootdir, str(rootname+'.nc'))
         self.output = os.path.join(rootdir, str(rootname+'.dat'))
-
-        self.read_data(mode='msd')
 
         self.coeff, self.slope, self.coeff_std = self.compute_diffusion_coefficient(self.time[discard_init_steps:], self.msd[discard_init_steps:])
 
@@ -312,7 +322,7 @@ class MsdOutput:
             data = dts.createVariable(
                     'discard_initial_timesteps', 'd',  ('one'))
             data.units = 'picosecond'
-            data[:] = self.timestep * self.discard_init_steps
+            data[:] = self.time[self.discard_init_steps]
 
     def write_output(self):
 
@@ -322,7 +332,7 @@ class MsdOutput:
             f.write('Temperature: {:.0f}K\n'.format(self.temp))
             f.write('Total runtime: {:.5f} ps\n'.format(self.time[-1]))
             f.write('Timestep: {:.5f} ps\n'.format(self.timestep))
-            f.write('Initial {} ps has been discarded\n'.format(self.discard_init_steps*self.timestep))
+            f.write('Initial {} ps has been discarded\n'.format(self.time[self.discard_init_steps]))
 
             f.write('Diffusing atoms type: {}\n'.format(self.atom_type))
             f.write('MSD type: {}\n'.format(self.msd_type))
