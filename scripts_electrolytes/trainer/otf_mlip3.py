@@ -39,6 +39,12 @@ class OtfMtp3Trainer(OtfMtpTrainer):
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
 
+    def check_paths(self):
+        ''' Check that required filepaths actually exist. Do not start training. '''
+        
+        if not os.path.exists(self.init_mtp):
+            raise FileNotFoundError(f'init_mtp file {self.init_mtp} not found')
+
     def initiate_training(self):
 
         self.owd = os.getcwd()
@@ -49,9 +55,12 @@ class OtfMtp3Trainer(OtfMtpTrainer):
 
 
     def train_from_lammpsmd(self, lammps_path=None, md_nsteps=10000, lammps_input=None, lammps_struct=None, temp=None,
-                            atomic_species=None, relaunch=True, preselect_fname=None):
+                            atomic_species=None, relaunch=True, preselect_fname=None, dry_run=False):
 
         self.set_lammps_variables(lammps_path, md_nsteps, lammps_input, lammps_struct, temp, atomic_species, relaunch)
+        if dry_run:
+            print('Dry run finished, all paths were checked. Proceed with training.')
+            quit()
 
         if preselect_fname:
             self.preselect_fname = preselect_fname
@@ -161,6 +170,8 @@ class OtfMtp3Trainer(OtfMtpTrainer):
     def set_mlip_variables(self, training_flags):
 
         if training_flags:
+            if not os.path.exists(training_flags):
+                raise FileNotFoundError(f'mlip_flags file {training_flags} not found')
             self.set_mlip_flags(training_flags)
         else:
             self.training_flags = None

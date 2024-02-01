@@ -241,7 +241,7 @@ class MsdOutput:
         self.nc_output = os.path.join(rootdir, str(rootname+'.nc'))
         self.output = os.path.join(rootdir, str(rootname+'.dat'))
 
-        self.coeff, self.slope, self.coeff_std = self.compute_diffusion_coefficient(self.time[discard_init_steps:], self.msd[discard_init_steps:])
+        self.coeff, self.slope, self.coeff_std = self.compute_diffusion_coefficient(self.time[self.discard_init_steps:], self.msd[self.discard_init_steps:])
 
         if verbose:
             print(f'D={self.coeff:.3e}+-{self.coeff_std:.3e} cm^2/s')

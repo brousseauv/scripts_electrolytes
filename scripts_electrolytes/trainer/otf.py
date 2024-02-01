@@ -57,27 +57,38 @@ class OtfMtpTrainer:
         if not mtp_path:
             raise ValueError('Must provide path to MLP executable in mlp_path')
         else:
+            if not os.path.exists(mtp_path):
+                raise FileNotFoundError(f'mtp_path file {mtp_path} not found')
             self.mtp = mtp_path
 
         if not init_mtp:
             raise ValueError('Must provide initial mtp.pot or mtp.almtp in init_mtp')
         else:
+            if not os.path.exists(init_mtp):
+                raise FileNotFoundError(f'init_mtp file {init_mtp} not found')
             self.init_mtp = init_mtp
 
         if not init_train_db:
             raise ValueError('Must provide initial training set in init_train')
         else:
+            if not os.path.exists(init_train_db):
+                raise FileNotFoundError(f'init_train_db file {init_train_db} not found')
             self.init_train = init_train_db
 
         if not abi_input:
             raise ValueError('Must provide abinit variables set as abi_input')
-
+        else:
+            if not os.path.exists(abi_input):
+               raise FileNotFoundError(f'abi_input file {abi_input} not found')
+           
         if submit:
             if not dft_job_script:
                 msg = """DFT jobs will be submitted. Must provide path to a sample DFT submission 
                          script as dft_job_script, or use submit=False."""
                 raise ValueError(msg)
             else:
+                if not os.path.exists(dft_job_script):
+                    raise FileNotFoundError(f'dft_job_script file {dft_job_script} not found')
                 self.dft_jobscript = os.path.abspath(dft_job_script)
 
             if not train_job_script:
@@ -85,6 +96,8 @@ class OtfMtpTrainer:
                          submission script as train_job_script, or use submit=False."""
                 raise ValueError(msg)
             else:
+                if not os.path.exists(train_job_script):
+                    raise FileNotFoundError(f'train_job_script file {train_job_script} not found')
                 self.train_jobscript = os.path.abspath(train_job_script)
 
             if not username:
@@ -106,6 +119,8 @@ class OtfMtpTrainer:
             train_job_args = self.set_job_args(train_job_args)
         self.train_job_args = train_job_args 
 
+        if not os.path.exists(valid_db):
+            raise FileNotFoundError(f'valid_db file {valid_db} not found')
         self.valid_db = os.path.abspath(valid_db)
         self.submit = submit
 
@@ -399,16 +414,22 @@ class OtfMtpTrainer:
         if not lammps_path:
             raise ValueError('Must provide path to LAMMPS executable as lammps_path')
         else:
+            if not os.path.exists(lammps_path):
+                raise FileNotFoundError(f'lammps_path file {lammps_path} not found')
             self.lammps = lammps_path
 
         if not lammps_input:
             raise ValueError('Must provide .in input file for LAMMPS as lammps_input')
         else:
+            if not os.path.exists(lammps_input):
+                raise FileNotFoundError(f'lammps_input file {lammps_input} not found')
             self.lammps_input = os.path.abspath(lammps_input)
 
         if not lammps_struct:
             raise ValueError('Must provide initial structure in .lmp format for LAMMPS as lammps_struct')
         else:
+            if not os.path.exists(lammps_struct):
+                raise FileNotFoundError(f'lammps_struct file {lammps_struct} not found')
             self.lammps_struct = os.path.abspath(lammps_struct)
 
         if not temp:

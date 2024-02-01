@@ -46,9 +46,12 @@ class OtfMtp2Trainer(OtfMtpTrainer):
 
 
     def train_from_lammpsmd(self, lammps_path=None, md_nsteps=10000, lammps_input=None, lammps_struct=None, temp=None,
-                            atomic_species=None, relaunch=True):
+                            atomic_species=None, relaunch=True, dry_run=False):
 
         self.set_lammps_variables(lammps_path, md_nsteps, lammps_input, lammps_struct, temp, atomic_species, relaunch)
+        if dry_run:
+            print('Dry run finished, all paths were checked. Proceed with training.')
+            quit()
 
         finished = False
 
@@ -174,9 +177,13 @@ class OtfMtp2Trainer(OtfMtpTrainer):
         if not mlip_ini:
             raise ValueError('Must provide mlip.ini file as mlip_ini')
         else:
+            if not os.path.exists(mlip_ini):
+                raise FileNotFoundError(f'mlip_ini file {mlip_ini} not found')
             self.mlip_ini = os.path.abspath(mlip_ini)
 
         if training_flags:
+            if not os.path.exists(mlip_flags):
+                raise FileNotFoundError(f'mlip_flags file {training_flags} not found')
             self.set_mlip_flags(training_flags)
         else:
             self.training_flags = None
