@@ -174,7 +174,7 @@ class LammpsMsdData(MsdData):
 
         self.diffusion = self.extract_diffusion_coefficient()
         self.msd_std = self.extract_msd_errors()
-        logging.info('Diffusion coefficient: {:.3e} cm^2/s'.format(self.diffusion))
+        logging.info(f'Diffusion coefficient: {self.diffusion:.3e}+-{self.diffusion_std:.3e} cm^2/s')
 
         if plot:
             self.plot_errors = plot_errors

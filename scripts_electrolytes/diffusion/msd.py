@@ -49,11 +49,11 @@ class MsdData:
         # Also, one could decide to elimitate some initial and final part of the trajectory when computing the fit
 
         # Assume units of angstrom^2/ps
-        self.slope = np.polyfit(self.time[self.discard_init_steps:], self.msd[self.discard_init_steps:], 1)
+        self.slope, cov = np.polyfit(self.time[self.discard_init_steps:], self.msd[self.discard_init_steps:], 1, cov=True)
 
         # Assume 3D diffusion, for which the slope of MSD vs t is 6D
         self.diffusion = 1E-4*self.slope[0]/6
-        # FIX ME: add standard deviation of diffusion coefficient fit
+        self.diffusion_std = 1E-4*np.sqrt(np.diag(cov)[0])/6
 
         return self.diffusion
 
