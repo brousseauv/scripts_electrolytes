@@ -1,4 +1,4 @@
-from ..interfaces.lammps_interface import read_traj_from_dump
+from ..interfaces.lammps_interface import read_traj_from_dump, read_traj_from_ncdump
 from ..interfaces.ase_interface import ase_to_abistruct
 from ..interfaces.mtp_interface import split_cfg_configs, convert_chunk_to_abivars
 from ..interfaces.abinit_interface import abivars_to_abistruct
@@ -255,3 +255,54 @@ class DumpDbReader(DbReader):
             self.has_forces = True
         except:
             self.has_forces = False
+
+class NcDumpDbReader(DbReader):
+
+    def __init__(self, fname, atomic_numbers = None):
+
+        super(NcDumpDbReader, self).__init__(fname)
+
+        if not atomic_numbers:
+            raise ValueError('Must define a list for atomic_numbers')
+        self.atomic_numbers = atomic_numbers
+
+
+    def load_database(self):
+
+        time, traj = read_traj_from_ncdump(self.fname, self.atomic_numbers)
+        # now traj is a sequence of Atoms objects, must be converted to abistruct
+
+        self.set_properties(traj)
+        nconfig = len(traj)
+        natom = np.shape(traj[0].get_positions())[0]
+
+        self.initialize_arrays(nconfig, natom)
+
+        # they should already be in the correct units (eV, eV/ang, eV/ang^3)
+        for i in range(nconfig):
+            self.structures.append(ase_to_abistruct(traj[i]))
+
+            # There should NOT be total energy and stress data in the dump file. 
+            # Treating only the forces. 
+            if self.has_forces:
+                self.forces[i, :, :] = traj[i].calc.get_forces()
+
+
+    def set_properties(self, traj):
+
+        info = list(traj[0].info.keys())
+
+        # dump files are intended for atom properties. 
+        # so they can contain forces but no energy/stress
+        # for now, disabling has_energy and has_stress
+
+        self.has_energy = False
+        self.has_stress = False
+
+        # check if traj contains forces
+        try:
+            natom = np.shape(traj[0].calc.get_forces())[0]
+            self.has_forces = True
+        except:
+            self.has_forces = False
+
