@@ -263,8 +263,13 @@ class MsdOutput:
         else:
             color = bright['red']
 
+        if myplot.fitcolor:
+            fitcolor = myplot.fitcolor
+        else:
+            fitcolor = 'black'
+
         myplot.ax.plot(self.time, self.msd, color=color, linewidth=1.0, linestyle='solid')
-        myplot.ax.plot(self.time, y, color=color, linewidth=myplot.linewidth, linestyle='dashed')
+        myplot.ax.plot(self.time, y, color=myplot.fitcolor, linewidth=myplot.linewidth, linestyle='dashed')
 
         if self.discard_init_steps != 0:
             myplot.ax.axvline(self.time[self.discard_init_steps], color='black', linestyle='dashed', linewidth=0.5)
@@ -272,7 +277,8 @@ class MsdOutput:
             xlims = myplot.ax.get_xlim()
             if fill:
                 myplot.ax.fill_between(np.linspace(0, self.time[self.discard_init_steps], 10), ylims[0], ylims[1], color='gray', alpha=0.4, zorder=-1)
-
+                myplot.ax.set_xlim([0, self.time[-1]])
+                myplot.ax.set_ylim(ylims)
         myplot.set_labels()
         try:
             myplot.add_title()
