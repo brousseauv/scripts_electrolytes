@@ -77,7 +77,7 @@ class AseMsdData(MsdData):
             if not isinstance(timestep, float):
                 raise ValueError('Timestep shoulf be a float, but I got {}'.format(type(timestep)))
             else:
-                logging.warning(f'Timestep is set to {timestep:.2f}ps. It should NOT have been defined using ase.units module.')
+                logging.warning(f'Timestep is set to {timestep:.4f}ps. It should NOT have been defined using ase.units module.')
                 self.timestep = timestep
         if self.msd_type not in ['bare', 'timesliced']:
             raise ValueError('msd_type should be either "bare" or "timesliced" but I got {}'.format(self.msd_type))

@@ -1,11 +1,11 @@
 import os
 from .db_creator import MtpDbCreator, AseDbCreator, XyzDbCreator
-from .db_reader import AseDbReader, MtpDbReader, XyzDbReader, DumpDbReader
+from .db_reader import AseDbReader, MtpDbReader, XyzDbReader, DumpDbReader, NcDumpDbReader
 
 
 ''' 
     This class converts databases between different formats.
-    Input format: "mtp", "ase", "xyz" or "dump"
+    Input format: "mtp", "ase", "xyz" or "dump" or "ncdump"
     Output_format: "mtp", "ase" or "xyz"
 '''
 
@@ -26,17 +26,20 @@ class DbConverter:
 
     def check_input_format(self, fmt):
 
-        if fmt not in ['mtp', 'ase', 'xyz', 'dump']:
-            raise ValueError('input_format must be either "mtp", "ase", "xyz" or "dump", but I got "{}"'.format(fmt))
+        if fmt not in ['mtp', 'ase', 'xyz', 'dump', 'ncdump']:
+            raise ValueError('input_format must be either "mtp", "ase", "xyz", "dump" or "ncdump", but I got "{}"'.format(fmt))
         if fmt == 'mtp' and not self.fname.endswith('.cfg'):
             raise Exception('Input file {} does not have .cfg extension expected from MTP format')
         if fmt == 'ase' and not self.fname.endswith('.db'):
             raise Exception('Input file {} does not have .db extension expected from ASE format')
         if fmt == 'xyz' and not self.fname.endswith('.xyz'):
             raise Exception('Input file {} does not have .xyz extension expected from XYZ format')
-        if fmt == 'dump' and not self.fname.endswith('.dump'):
-            if not self.fname.endswith('dmp'):
-                raise Exception('Input file {} does not have .dump or .dmp extension expected from LAMMPS-dump format')
+#        if fmt == 'dump' and not self.fname.endswith('.dump'):
+#            if not self.fname.endswith('dmp'):
+#                raise Exception('Input file {} does not have .dump or .dmp extension expected from LAMMPS-dump format')
+        if fmt == 'ncdump' and not self.fname.endswith('.nc'):
+            raise Exception('Input file {} does not have .nc extension expected from netCDF format')
+
 
         self.input_format = fmt
 
@@ -96,6 +99,8 @@ class DbConverter:
             data = XyzDbReader(self.fname)
         elif self.input_format == 'dump':
             data = DumpDbReader(self.fname, self.atomic_numbers)
+        elif self.input_format == 'ncdump':
+            data = NcDumpDbReader(self.fname, self.atomic_numbers)
 
         data.load_database()
         # for now, we should have structures in abistruct format, energy, forces and stresses

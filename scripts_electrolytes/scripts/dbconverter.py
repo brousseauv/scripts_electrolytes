@@ -45,7 +45,7 @@ def create_parser():
     parser.add_argument("--in_dbname", default=None, help="Input database name", required=True)
     parser.add_argument("--out_dbname", default=None, help="Output database name")
 
-    parser.add_argument("--input_format", choices=['ase', 'mtp', 'xyz', 'dump'], help="Input format for the database", required=True)
+    parser.add_argument("--input_format", choices=['ase', 'mtp', 'xyz', 'dump', 'ncdump'], help="Input format for the database", required=True)
     parser.add_argument("--output_format", choices=['ase', 'mtp', 'xyz'], help="Output format for the database", required=True)
     parser.add_argument("--overwrite", type=bool, default=False, help="Should an existing database be overwritten or not")
     parser.add_argument("--atomic_numbers", default=None, type=list_of_integers, help="List of atomic numbers, ordered as in dump/cfg file")
@@ -61,6 +61,8 @@ def list_of_integers(arg):
 def check_parser(args, parser):
 
     if args.input_format == 'dump' and not args.atomic_numbers:
+        parser.error('Must provide a list for atomic_numbers')
+    if args.input_format == 'ncdump' and not args.atomic_numbers:
         parser.error('Must provide a list for atomic_numbers')
     if args.input_format == 'mtp' and not args.atomic_numbers:
         parser.error('Must provide a list for atomic_numbers')
