@@ -2,6 +2,7 @@
 import numpy as np
 import subprocess as subp
 import re
+import pandas as pd
 from ..utils.constants import ang_to_bohr
 
 
@@ -187,6 +188,58 @@ def read_mv_grade(fname, verbose=False):
 
     return data
 
+
+def read_nbh_mv_grade(fname, verbose=False):
+    ''' Reads the atom and global (max) MV_grade from a .cfg database and returns a dictionnary containing
+        extrapolation grade values, and some statistics about the database
+    '''
+
+    data = {}
+    status, output = subp.getstatusoutput('grep MV_grade {}'.format(fname))
+    output = np.asarray([i.split('\t')[-1] for i in output.split('\n')], dtype=float)
+
+    data['values'] = output
+    data['max'] = max(output)
+    data['min'] = min(output)
+    data['argmax'] = np.argmax(output)
+    data['argmin'] = np.argmin(output)
+    data['mean'] = np.mean(output)
+    data['median'] = np.median(output)
+
+    data['stdev'] = np.std(output)
+
+    if verbose:
+        print('For file:{}'.format(fname))
+        print('    gamma max = {:.2f} (step {})'.format(data['max'], data['argmax']))
+        print('    gamma min = {:.2f} (step {})'.format(data['min'], data['argmin']))
+        print('    gamma mean = {:.2f}'.format(data['mean']))
+        print('    gamma stdev = {:.2f}'.format(data['stdev']))
+        print('    gamma median = {:.2f}'.format(data['median']))
+
+    # Treat individual atom grade
+    configs = split_cfg_configs(fname)
+    nconfig = len(configs)
+
+    for c, chunk in enumerate(configs):
+        # strip atom lines
+        # add to columns
+        # concat df
+
+        natom = read_natom(chunk) 
+        energy, stresses, idx = read_config_properties(chunk)
+        atomdata, header = read_atomdata(chunk, idx)
+        split_header = re.sub('\s{2,}', ' ', re.sub('\n', '', header)).split(': ')[1].split(' ')
+        split_atomdata = [re.sub('\s{2,}', ' ', re.sub('\n', '', row)) for row in atomdata]
+
+        current_df = pd.DataFrame(data=[row.split() for row in split_atomdata], columns=split_header)
+        current_df['cfg_index'] = c 
+        try:
+            atom_df = pd.concat([atom_df, current_df])
+        except:
+            atom_df = current_df.copy()
+
+    atom_df.reset_index(drop=True, inplace=True)
+    return data, atom_df
 
 def split_cfg_configs(fname):
 
