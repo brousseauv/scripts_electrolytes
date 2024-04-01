@@ -4,7 +4,8 @@ import subprocess as subp
 import re
 import pandas as pd
 from ..utils.constants import ang_to_bohr
-
+from typing import Any, Dict, List, Optional, TextIO, Tuple
+from collections import defaultdict
 
 def abistruct_to_cfg(db, struct, energy=None, forces=None, stresses=None):
 
@@ -384,3 +385,106 @@ def split_atomic_data(data, header, natom, latt):
             forces[a, :] = atom[idx_forces:idx_forces+3]
 
     return  typat, pos, forces
+
+def read_cfgs_with_nbh_grade(filename: str, nbh_grade: bool=True, elements: list=None) -> pd.DataFrame:
+    '''
+    Read cfg file with atomic neighborhood MaxVol grade, 
+    and convert to dataframe
+    Adapted from diffusion_for_multi_scale_molecular_dynamics.crystal_diffusion.models.mtp.read_cfgs
+    to account for cfg files containing numbered atomic index instead of species
+    '''
+
+    data_pool = []
+    with open(filename, 'rt') as f:
+        lines = f.read()
+
+    block_pattern = re.compile("BEGIN_CFG\n(.*?)\nEND_CFG", re.S)
+    size_pattern = re.compile("Size\n(.*?)\n SuperCell", re.S | re.I)
+    energy_pattern = re.compile("Energy\n(.*?)\n (?=PlusStress|Stress)", re.S)
+
+    for block in block_pattern.findall(lines):
+        d = {"outputs": {}}
+        size_str = size_pattern.findall(block)[0]
+        size = int(size_str.lstrip())
+
+        if nbh_grade:
+            position_pattern = re.compile("nbh_grades\n(.*?)\n Energy", re.S)
+            try:
+                position_str = position_pattern.findall(block)[0]
+            except:
+                position_pattern = re.compile("nbh_grades\n(.*?)\n Feature", re.S)
+                position_str = position_pattern.findall(block)[0]
+        else:
+            position_pattern = re.compile("fz\n(.*?)\n Energy", re.S)
+
+        position = np.array(list(map(formatify, position_str.split("\n"))))
+        species = np.array([elements[j] for j in position[:, 1].astype(np.int64)])
+
+        if len(position[0])>6:
+            forces = position[:, 5:8].tolist()
+        else:
+            forces = None
+
+        try:
+            energy_str = energy_pattern.findall(block)[0]
+            energy = float(energy_str.lstrip())
+        except:
+            energy = None
+
+        d["outputs"]["energy"] = energy
+        d["num_atoms"] = size
+        d["outputs"]["position"] = position[:, 2:5].tolist()
+        d["outputs"]["forces"] = forces
+        d["outputs"]["species"] = species
+
+        if nbh_grade:
+            nbh_grade_values = position[:, -1].tolist()
+            d["outputs"]["nbh_grades"] = nbh_grade_values
+
+        data_pool.append(d)
+    df = convert_to_dataframe(docs=data_pool)
+    return df
+
+def convert_to_dataframe(docs: List[Dict[str, Any]]) -> pd.DataFrame:
+    '''
+    Convert a list of docs into DataFrame usable for computing metrics and analysis.
+    Taken from from diffusion_for_multi_scale_molecular_dynamics.crystal_diffusion.models.mtp
+    Written hereonly to limit the size of virtual environments...
+    '''
+    df = defaultdict(list)
+
+    for s_idx, d in enumerate(docs):
+        n_atom = d['num_atoms']
+        outputs = d["outputs"]
+        pos_arr = np.array(outputs["position"])
+        assert n_atom == pos_arr.shape[0], "Number of positions do not match number of atoms"
+        if outputs['forces'] is not None:
+            force_arr = np.array(outputs["forces"])
+            assert n_atom == force_arr.shape[0], "Number of forces do not match number of atoms"
+
+        for i, x in enumerate(['x', 'y', 'z']):
+            df[x] += pos_arr[:, i].tolist()
+            if outputs['forces'] is not None:
+                df[f'f{x}'] += force_arr[:, i].tolist()
+            else:
+                df[f'f{x}'] += [None] * n_atom
+
+        if outputs['energy'] is not None:
+            df['energy'] += [outputs['energy']] * n_atom  # copy the value to all atoms
+        else:
+            df['energy'] += [None] * n_atom
+
+        if "nbh_grades" in outputs.keys():
+            nbh_grades = outputs["nbh_grades"]
+            assert n_atom == len(nbh_grades), "Number of gamma values do not match number of atoms"
+            df['nbh_grades'] += nbh_grades
+
+        df['atom_index'] += list(range(n_atom))
+        df['structure_index'] += [s_idx] * n_atom
+
+    df = pd.DataFrame(df)
+    return df
+
+def formatify(string: str) -> List[float]:
+        """Convert string to a list of float."""
+        return [float(s) for s in string.split()]
