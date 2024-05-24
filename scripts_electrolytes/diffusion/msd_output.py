@@ -235,7 +235,10 @@ class MsdOutput:
             self.discard_init_steps = discard_init_steps
 
         if not rootname:
-            rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{discard_init_steps}'
+            if discard_init_time_ps:
+                rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{discard_init_time_ps}ps'
+            else:
+                rootname = os.path.splitext(os.path.basename(self.fname))[0] + f'_discard{self.discard_init_steps}'
         rootdir = os.path.dirname(self.fname)
 
         self.nc_output = os.path.join(rootdir, str(rootname+'.nc'))

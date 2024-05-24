@@ -104,6 +104,7 @@ class LammpsMsdData(MsdData):
 
             if discard_init_time_ps:
                 self.discard_init_steps = np.asarray([self.time>=discard_init_time_ps]).nonzero()[1][0]
+                print('discard init steps: ', self.discard_init_steps, discard_init_time_ps)
             else:
                 if discard_init_steps != 0:
                     self.thermo_step = (self.time[1]-self.time[0])/self.timestep
