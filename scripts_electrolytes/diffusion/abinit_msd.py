@@ -53,6 +53,7 @@ class HistMsdData(MsdData):
         self.msd = np.mean(self.msd_atoms, axis=1)
 
     def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', discard_init_steps=0, discard_init_time_ps=None,
+                                      discard_final_steps=None,
                                       plot=False, plot_errors=False, plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
@@ -70,6 +71,10 @@ class HistMsdData(MsdData):
 
             discard_init_time_ps: time interval (in ps) to discard from slope evaluation
                                 default=None (not considered)
+
+            discard_final_steps: Do not take the N last steps of the trajectory into account when computing the
+                                diffusion coefficient.
+                                Default: None
 
             plot: activate plotting of MSD vs t
 
@@ -93,10 +98,17 @@ class HistMsdData(MsdData):
         if not isinstance(discard_init_steps, int):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
 
+        if discard_final_steps is not None:
+            raise NotImplementedError('discard_final_steps was not tested for Abinit MD.')
+            if not isinstance(discard_final_steps, int):
+                raise TypeError('discard_final_steps should be an integer, but I got {} which is a {}'.format(discard_final_steps, type(discard_final_steps)))
+
         self.read_temperature
         self.get_atoms_for_diffusion()
         logging.info('Extracting trajectories...')
         self.traj = self.read_positions
+        if discard_final_steps is not None:
+            self.traj = self.traj[:-discard_final_steps]
         self.nframes, self.natoms = np.shape(self.traj)[:2]
         # check if the positions are wrapped or unwrapped, with condition like dx larger than half the unit cell?
 #        for i, frame in enumerate(self.traj):

@@ -40,6 +40,7 @@ class LammpsMsdData(MsdData):
     
     def compute_diffusion_coefficient(self, thermo_fname=None, timestep=None, atom_type='all', atomic_numbers=None, 
                                       msd_type='bare', input_temperature=None, discard_init_steps=0, discard_init_time_ps=None,
+                                      discard_final_steps=None,
                                       plot=False, plot_errors=False, plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
@@ -61,11 +62,15 @@ class LammpsMsdData(MsdData):
             input_temperature: Running temperature of the MD run. For "dump" filetype only.
 
             discard_init_steps: Do not take the N first steps of the trajectory into account when fitting the diffusion
-                                coefficient fromthe MSD.
+                                coefficient from the MSD.
                                 Default: 0
 
             discard_init_time_ps: time interval (in ps) to discard from slope evaluation
                                 default=None (not considered)
+
+            discard_final_steps: Do not take the N last steps of the trajectory into account when fitting the diffusion
+                                coefficient from the MSD.
+                                Default: None (all steps considered)
 
             plot: activate plotting of MSD vs t
 
@@ -84,6 +89,10 @@ class LammpsMsdData(MsdData):
 
         if not isinstance(discard_init_steps, int):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
+
+        if discard_final_steps is not None:
+            if not isinstance(discard_final_steps, int):
+                raise TypeError('discard_final_steps should be an integer, but I got {} which is a {}'.format(discard_final_steps, type(discard_final_steps)))
 
         if self.filetype == 'thermo':
             if not thermo_fname:
@@ -113,6 +122,7 @@ class LammpsMsdData(MsdData):
                     #self.msd = self.msd[discard_init_steps_new:]
                     #self.time = self.time[discard_init_steps_new:]
                     self.discard_init_steps = discard_init_steps_new
+            self.discard_final_steps = discard_final_steps
 
                     #  I shifted the time so the first used frame is t=0. That does not affect the slope, which is what I am looking for anyway
                     #self.time -= self.time[0]
@@ -146,14 +156,22 @@ class LammpsMsdData(MsdData):
             if self.filetype == 'dump':
                 self.data_source = 'LAMMPS .dump file'
                 warnings.warn('Computing diffusion from a LAMMPS text dump file. Make sure the positions are unwrapped.')
-                self.traj = read_traj_from_dump(self.fname, atomic_numbers)
+                if discard_final_steps is not None:
+                    self.traj = read_traj_from_dump(self.fname, atomic_numbers, skip_nlast=discard_final_steps)
+                else:
+                    self.traj = read_traj_from_dump(self.fname, atomic_numbers)
+
             elif self.filetype == 'dump-netcdf':
                 self.data_source = 'LAMMPS .dump netCDF file'
-                self.time, self.traj = read_traj_from_ncdump(self.fname, atomic_numbers)
+                if discard_final_steps is not None:
+                    self.time, self.traj = read_traj_from_ncdump(self.fname, atomic_numbers, skip_nlast=discard_final_steps)
+                else:
+                    self.time, self.traj = read_traj_from_ncdump(self.fname, atomic_numbers)
 
             # Discard some initial timesteps
             #self.traj = self.traj[discard_init_steps:]
             self.get_atoms_for_diffusion()
+
             self.nframes = len(self.traj)
             self.natoms = len(self.atom_indices)
             logging.info('Computing MSD from atomic positions...')

@@ -30,6 +30,7 @@ class AseMsdData(MsdData):
     
     def compute_diffusion_coefficient(self, timestep=None, atom_type='all', msd_type='bare', input_temperature=None,
                                       discard_init_steps=0, discard_init_time_ps=None, plot=False, plot_errors=False,
+                                      discard_final_steps=None,
                                       plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
@@ -53,6 +54,10 @@ class AseMsdData(MsdData):
             discard_init_time_ps: time interval (in ps) to discard from slope evaluation
                                 default=None (not considered)
 
+            discard_final_steps: Do not take the N last steps of the trajectory into account when fitting the diffusion
+                                coefficient fromthe MSD.
+                                Default: None
+
             plot: activate plotting of MSD vs t
 
             plot_errors: plot MSD(t) +- standard deviation on all atoms at each timestep, if available
@@ -70,6 +75,11 @@ class AseMsdData(MsdData):
 
         if not isinstance(discard_init_steps, int):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
+
+        if discard_final_steps is not None:
+            raise NotImplementedError('discard_final_steps was not tested for ASE MD.')
+            if not isinstance(discard_final_steps, int):
+                raise TypeError('discard_final_steps should be an integer, but I got {} which is a {}'.format(discard_final_steps, type(discard_final_steps)))
 
         if not timestep:
             raise ValueError('Missing value for timestep (in ps)')
@@ -98,6 +108,8 @@ class AseMsdData(MsdData):
         ### check if I can have unwrapped positions!!!
         ## Idea: do it assuming they are wrapped, then use ase's built-in DiffusionCoefficient class and compare.
         self.traj = ase_read(self.fname, index=':')
+        if discard_final_steps:
+            self.traj = self.traj[:-discard_final_steps]
 
         self.get_atoms_for_diffusion()
         self.nframes = len(self.traj)
