@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import warnings
 from ase.io import read as ase_read
 from ase.io import write as ase_write
 from ase.md.analysis import DiffusionCoefficient
@@ -56,15 +55,16 @@ def read_msd_from_thermo(data):
     return time, timestep, msd, temp
 
 
-def read_traj_from_dump(fname, atomic_numbers, which=':'):
+def read_traj_from_dump(fname, atomic_numbers, which=':', skip_nlast=None):
     ''' Read full trajectory from LAMMPS text dump file '''
-
-    warnings.warn('Computing diffusion from a LAMMPS text dump file. Make sure the positions are unwrapped.')
 
     traj= ase_read(fname, format='lammps-dump-text', index=which)
 
     # as the lammps dump outputs only atom id (1,2,3...) and not type, ASE sees H, He, Li...
     # So, convert atom id to atomic masses
+    if skip_nlast is not None:
+        traj = traj[:-skip_nlast]
+
     for frame in traj:
         for a in range(len(frame.numbers)):
             frame.numbers[a] = atomic_numbers[frame.numbers[a]-1]
@@ -193,7 +193,7 @@ def set_xyz_message(latt, energy, forces, stresses):
     return message
 
 
-def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
+def read_traj_from_ncdump(fname, atomic_numbers, which=':', skip_nlast=None):
     ''' Read trajectory data from LAMMPS dump file in netCDF format,
         and convert to a list of ASE Atoms objects
     '''
@@ -203,7 +203,7 @@ def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
             index = string2index(which)
         except ValueError:
             pass
-    print(index)
+
     traj = []
 
     with nc.Dataset(fname, 'r') as root:
@@ -217,6 +217,8 @@ def read_traj_from_ncdump(fname, atomic_numbers, which=':'):
         # Define cell from lattice parammeters and angles
         cell = np.concatenate((lattice, angles), axis=1)
      
+        if skip_nlast is not None:
+            time = time[:-skip_nlast]
         for i in list(range(len(time)))[index]:
             symbol = get_symbol(atom_type[i,:], atomic_numbers)
             atoms = Atoms(symbol, cell=cell[i], pbc=True, positions=coords[i,:])

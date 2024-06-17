@@ -52,8 +52,9 @@ class HistMsdData(MsdData):
         self.msd_atoms = self.compute_atoms_msd(displacements)
         self.msd = np.mean(self.msd_atoms, axis=1)
 
-    def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', discard_init_steps=0, plot=False, plot_errors=False, 
-                                      plot_verbose=True, plot_all_atoms=False, **kwargs):
+    def compute_diffusion_coefficient(self, atom_type='all', msd_type='bare', discard_init_steps=0, discard_init_time_ps=None,
+                                      discard_final_steps=None,
+                                      plot=False, plot_errors=False, plot_verbose=True, plot_all_atoms=False, **kwargs):
 
         '''
             atom_type: for which atoms the MSD must be computed. Currently, possible options 
@@ -64,10 +65,16 @@ class HistMsdData(MsdData):
                         "timesliced": for each time interval t, the MSD of each individual atom is averaged over all possible
                         time slices equivalent to t (ex.: if t=2, average 2-0, 3-1, 4-2, etc.)
 
-            discard_init_steps: Do not take the N first steps of the trajectory into account when computing MSD.
+            discard_init_steps: Do not take the N first steps of the trajectory into account when computing the
+                                diffusion coefficient.
                                 Default: 0
-                                Note: only the default value can be used with "thermo" files.
-                                (since the average MSD on atoms is by default taken from the initial step)
+
+            discard_init_time_ps: time interval (in ps) to discard from slope evaluation
+                                default=None (not considered)
+
+            discard_final_steps: Do not take the N last steps of the trajectory into account when computing the
+                                diffusion coefficient.
+                                Default: None
 
             plot: activate plotting of MSD vs t
 
@@ -82,7 +89,7 @@ class HistMsdData(MsdData):
             **kwargs: optional arguments that will be passes to the Plotter object (see plotter/plotter.py)
         '''
 
-        timestep = self.read_timestep
+        self.timestep = self.read_timestep
         self.atom_type = atom_type
         logging.info('Will average MSD(T) on {} atoms'.format(self.atom_type))
 
@@ -91,10 +98,17 @@ class HistMsdData(MsdData):
         if not isinstance(discard_init_steps, int):
             raise TypeError('discard_init_steps should be an integer, but I got {} which is a {}'.format(discard_init_steps, type(discard_init_steps)))
 
+        if discard_final_steps is not None:
+            raise NotImplementedError('discard_final_steps was not tested for Abinit MD.')
+            if not isinstance(discard_final_steps, int):
+                raise TypeError('discard_final_steps should be an integer, but I got {} which is a {}'.format(discard_final_steps, type(discard_final_steps)))
+
         self.read_temperature
         self.get_atoms_for_diffusion()
         logging.info('Extracting trajectories...')
-        self.traj = self.read_positions[discard_init_steps:]
+        self.traj = self.read_positions
+        if discard_final_steps is not None:
+            self.traj = self.traj[:-discard_final_steps]
         self.nframes, self.natoms = np.shape(self.traj)[:2]
         # check if the positions are wrapped or unwrapped, with condition like dx larger than half the unit cell?
 #        for i, frame in enumerate(self.traj):
@@ -106,14 +120,20 @@ class HistMsdData(MsdData):
 #                    print('found non-Li diffusing atoms in frame {}!!!'.format(i))
         # From this test, positions seem to be unwrapped as at some points some atoms move outside the unit cell
     
-        self.time = timestep*np.arange(self.nframes)
+        self.time = self.timestep*np.arange(self.nframes)
+
+        if discard_init_time_ps:
+            self.discard_init_steps = np.asarray([self.time>=discard_init_time_ps]).nonzero()[1][0]
+        else:
+            self.discard_init_steps = discard_init_steps
+
         logging.info('Computing MSD from atomic positions...') 
         self.compute_msd_from_positions()
         logging.info('... done!')
 
         self.diffusion = self.extract_diffusion_coefficient()
         self.msd_std = self.extract_msd_errors()
-        logging.info('Diffusion coefficient: {:.3e} cm^2/s'.format(self.diffusion))
+        logging.info(f'Diffusion coefficient: {self.diffusion:.3e}+-{self.diffusion_std:.3e} cm^2/s')
 
         self.write_data()
 

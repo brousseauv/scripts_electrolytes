@@ -15,6 +15,8 @@ class Plotter:
                 figname: filename for the figure. 
                 savefig: Boolean, should the figure be saved or not.
                 showfig: Boolean, display figure or not
+                linecolor: color for lineplot
+                fitcolor: color for linear fit
 
             kwargs without default values (ignored if not specified):
                 title: figure title
@@ -47,6 +49,7 @@ class Plotter:
         self.set_showfig(kwargs.get('showfig', True))
         self.set_marker(kwargs.get('marker', 'o'))
         self.set_linecolor(kwargs.get('linecolor', False))
+        self.set_fitcolor(kwargs.get('fitcolor', False))
         self.set_linestyle(kwargs.get('linestyle', 'solid'))
         self.set_xlimits(kwargs.get('xlim', None))
         self.set_ylimits(kwargs.get('ylim', None))
@@ -79,6 +82,9 @@ class Plotter:
 
     def set_linecolor(self, col):
         self.linecolor = col
+
+    def set_fitcolor(self, col):
+        self.fitcolor = col
 
     def set_linestyle(self, lstyle):
         self.linestyle = lstyle
