@@ -122,6 +122,8 @@ class LammpsMsdData(MsdData):
                     #self.msd = self.msd[discard_init_steps_new:]
                     #self.time = self.time[discard_init_steps_new:]
                     self.discard_init_steps = discard_init_steps_new
+                else:
+                    self.discard_init_steps = discard_init_steps
             self.discard_final_steps = discard_final_steps
 
                     #  I shifted the time so the first used frame is t=0. That does not affect the slope, which is what I am looking for anyway
