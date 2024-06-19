@@ -93,6 +93,9 @@ class LammpsMsdData(MsdData):
         if discard_final_steps is not None:
             if not isinstance(discard_final_steps, int):
                 raise TypeError('discard_final_steps should be an integer, but I got {} which is a {}'.format(discard_final_steps, type(discard_final_steps)))
+            if discard_final_steps == 0:
+                # use None if not discarding any final steps
+                discard_final_steps = None
 
         if self.filetype == 'thermo':
             if not thermo_fname:

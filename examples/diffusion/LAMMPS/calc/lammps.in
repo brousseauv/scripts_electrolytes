@@ -1,0 +1,43 @@
+
+#=====================Box parameters============================
+units       metal 
+# Initial atomic configuration, in .lmp format
+read_data ${INITCONFIG}
+group Li type 1  # group of all Li atoms
+#====================Potential parameters=======================
+## Load MLIP potential (MLIP3 version)
+pair_style  mlip load_from=${MLIPPOT} extrapolation_control=false
+pair_coeff  * *           #  
+neighbor    2.0 bin
+neigh_modify delay 0 every 1 check yes
+#========================Create regions=========================
+velocity all create $T ${SEED}
+
+#=========thermo==================
+thermo_style custom step time temp etotal ke pe press
+
+#==========================Output files========================
+#------solid at nvt-------------------
+fix      1 all nvt temp $T $T 0.02 
+timestep 0.0010 # units=metal, timestep is in picoseconds
+
+# Computes MSD of Li atoms, to be written in log file
+# This will already average on Li atoms, so information about individual trajectories is lost
+compute msd Li msd com yes
+
+thermo_style custom step time temp etotal ke pe press c_msd[4]
+
+## Output atomic positions to dump file to retain individual trajectories
+## Both text file and netCDF file formats are supported for postprocessing
+#
+## Add unwrapped atomic positions to dump file, sorting atoms according to their index
+dump positions all custom 500  unwrapped_traj.dump id type xu yu zu
+dump_modify positions sort id
+#
+# Add unwrapped atomic positions to dump file in netCDF format
+# append "x y z" at the end of the line to store wrapped coordinates, "fx fy fx" for forces
+dump netpos all netcdf 500 traj.nc id type xu yu zu 
+
+# Output "thermo" command every 500 timesteps
+thermo 500
+run 50000 # 50ps

@@ -1,0 +1,8 @@
+MSD data source file: mtp800K_100ps_2x2x2_netcdf.nc
+Temperature: 800K
+Total runtime: 50.00000 ps
+Timestep: 0.00100 ps
+Initial 25.000001907348633 ps has been discarded
+Diffusing atoms type: Li
+MSD type: bare
+Diffusion coefficient: 2.65992e-06 cm^2/s

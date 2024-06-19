@@ -1,0 +1,8 @@
+Data source: LAMMPS thermo data
+Temperature: 800K
+Total runtime: 50.00000 ps
+Timestep: 0.00100 ps
+Initial 0.0 ps has been discarded
+Diffusing atoms type: See lammps input file
+MSD type: bare
+Diffusion coefficient: 3.13355e-06 cm^2/s

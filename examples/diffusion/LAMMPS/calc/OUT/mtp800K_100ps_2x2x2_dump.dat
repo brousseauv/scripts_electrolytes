@@ -1,0 +1,8 @@
+Data source: LAMMPS .dump file
+Temperature: 800K
+Total runtime: 5.00000 ps
+Timestep: 0.05000 ps
+Initial 0.0 ps has been discarded
+Diffusing atoms type: Li
+MSD type: bare
+Diffusion coefficient: 3.13212e-05 cm^2/s

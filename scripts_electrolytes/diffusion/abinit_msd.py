@@ -102,6 +102,10 @@ class HistMsdData(MsdData):
             raise NotImplementedError('discard_final_steps was not tested for Abinit MD.')
             if not isinstance(discard_final_steps, int):
                 raise TypeError('discard_final_steps should be an integer, but I got {} which is a {}'.format(discard_final_steps, type(discard_final_steps)))
+            if discard_final_steps == 0:
+                # use None if not discarding any final steps
+                discard_final_steps = None
+
 
         self.read_temperature
         self.get_atoms_for_diffusion()
